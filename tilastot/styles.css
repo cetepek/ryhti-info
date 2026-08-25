@@ -1,0 +1,326 @@
+/* Palette roles are declared once here and referenced by role everywhere else,
+   so the light/dark values swap in one place. Dark values are declared under
+   both the OS media query and an explicit [data-theme] stamp, so a viewer's
+   own toggle wins in either direction. */
+:root {
+  color-scheme: light;
+  --page-plane: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid-line: #e1e0d9;
+  --axis-line: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --series-blue: #2a78d6;
+  --series-orange: #eb6834;
+  --track: #eceae4;
+  --critical: #d03b3b;
+  --focus: #2a78d6;
+  --surface-raised: #fcfcfb;
+  --shadow-sticky: 0 1px 2px rgba(11, 11, 11, 0.05), 0 8px 24px -12px rgba(11, 11, 11, 0.18);
+  --shadow-tooltip: 0 2px 6px rgba(11, 11, 11, 0.10), 0 12px 28px -10px rgba(11, 11, 11, 0.28);
+  --chip-bg: rgba(11, 11, 11, 0.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page-plane: #0d0d0d;
+    --surface-1: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid-line: #2c2c2a;
+    --axis-line: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-blue: #3987e5;
+    --series-orange: #d95926;
+    --track: #262624;
+    --critical: #e66767;
+    --focus: #3987e5;
+    --surface-raised: #1f1f1e;
+    --shadow-sticky: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
+    --shadow-tooltip: 0 2px 6px rgba(0, 0, 0, 0.5), 0 12px 28px -10px rgba(0, 0, 0, 0.8);
+    --chip-bg: rgba(255, 255, 255, 0.07);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page-plane: #0d0d0d;
+  --surface-1: #1a1a19;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid-line: #2c2c2a;
+  --axis-line: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --series-blue: #3987e5;
+  --series-orange: #d95926;
+  --track: #262624;
+  --critical: #e66767;
+  --focus: #3987e5;
+  --surface-raised: #1f1f1e;
+  --shadow-sticky: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
+  --shadow-tooltip: 0 2px 6px rgba(0, 0, 0, 0.5), 0 12px 28px -10px rgba(0, 0, 0, 0.8);
+  --chip-bg: rgba(255, 255, 255, 0.07);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page-plane);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { max-width: 940px; margin: 0 auto; padding: 0 20px; }
+
+.page-header { padding: 40px 0 8px; }
+.page-header h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -0.02em; }
+.lede { margin: 0; color: var(--text-secondary); max-width: 62ch; }
+.lede a { color: inherit; }
+
+/* ---- Filters: one row above the charts ---- */
+/* Sticky: the page is long, every figure below is scoped by these three
+   controls, and losing them on scroll means scrolling back up to re-read what
+   you are even looking at. */
+.filters {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin: 24px 0 20px;
+  padding: 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sticky);
+}
+.field { display: flex; flex-direction: column; gap: 6px; flex: 1 1 180px; min-width: 0; }
+.field label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+select, .reload {
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-1);
+  border: 1px solid var(--axis-line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  min-width: 0;
+}
+.reload { flex: 0 0 auto; cursor: pointer; font-weight: 600; }
+.reload:hover { border-color: var(--focus); }
+select:focus-visible, .reload:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---- Loading + error ---- */
+.status { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; color: var(--text-secondary); font-size: 0.9rem; }
+/* A class-level `display` would otherwise beat the UA stylesheet's [hidden]
+   rule, leaving the finished progress bar on screen. Needed on every element
+   here that sets display AND is toggled via the hidden attribute. */
+.status[hidden] { display: none; }
+.progress-track { flex: 1 1 auto; height: 4px; background: var(--track); border-radius: 999px; overflow: hidden; }
+.progress-fill { height: 100%; width: 0%; background: var(--series-blue); border-radius: 999px; transition: width 120ms linear; }
+#status-text { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+
+.error-panel {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--critical);
+  border-radius: 10px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+.error-panel p { margin: 0 0 8px; }
+.error-panel p:last-child { margin-bottom: 0; }
+.error-panel code { font-size: 0.85em; }
+
+/* ---- Hero + tiles ---- */
+.hero-block { margin: 8px 0 20px; }
+.section-title { margin: 0; font-size: 1rem; font-weight: 600; letter-spacing: 0.01em; }
+.hero-figure {
+  margin: 4px 0 2px;
+  /* Proportional figures deliberately: tabular-nums gives every digit the width
+     of a zero, which reads loose at display sizes. */
+  font-variant-numeric: proportional-nums;
+  font-size: clamp(2.6rem, 9vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.section-note { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+
+/* The active slice, one chip per dimension — readable at a glance next to the
+   hero figure, which the filter row alone cannot do once it scrolls away. */
+.scope-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.chip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 26px; }
+.tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.tile h3 { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
+.tile-value {
+  margin: 6px 0 2px;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: proportional-nums;
+}
+.tile-note { margin: 0; color: var(--text-muted); font-size: 0.78rem; }
+
+/* ---- Cards ---- */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+.card-head { margin-bottom: 14px; }
+.card-head .section-note { margin-top: 4px; max-width: 60ch; }
+.chart { min-height: 60px; }
+
+/* ---- Refetch: hold the frame ---- */
+/* While a new slice loads, the previous render stays put at reduced opacity.
+   Blanking to "–" or swapping in a skeleton costs the reader their place and
+   makes the page jump; this keeps the layout stable and just says "working". */
+#results { transition: opacity 160ms ease; }
+#results.is-refreshing { opacity: 0.45; }
+#results.is-refreshing .hit-target { pointer-events: none; }
+
+/* ---- Column chart (SVG) ---- */
+.grid-line { stroke: var(--grid-line); stroke-width: 1; }
+.axis-line { stroke: var(--axis-line); stroke-width: 1; }
+.axis-label { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.bar-mark { fill: var(--series-blue); }
+/* The one direct label on the chart: the peak. Text wears a text token, never
+   the series color. */
+.peak-label {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hit-target { fill: transparent; cursor: default; }
+.hit-target:hover { fill: var(--text-primary); fill-opacity: 0.05; }
+.hit-target:focus-visible {
+  fill: var(--text-primary);
+  fill-opacity: 0.05;
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* ---- Tooltip ---- */
+/* Value leads, label follows: the reader already knows which column they are
+   pointing at and wants the number. */
+.chart-tooltip {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-tooltip);
+}
+.chart-tooltip[hidden] { display: none; }
+.chart-tooltip-value { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+.chart-tooltip-label { font-size: 0.78rem; color: var(--text-secondary); }
+
+/* ---- Bar rows (HTML) ---- */
+.bar-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(60px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.bar-row { border-radius: 6px; transition: background-color 120ms ease; }
+.bar-row:hover { background: var(--chip-bg); }
+.bar-row-label { font-size: 0.87rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+.bar-row-track { background: var(--track); border-radius: 4px; height: 12px; overflow: hidden; }
+/* Rounded data-end, square at the baseline, so the bar reads as anchored to
+   zero rather than floating. */
+.bar-row-fill { display: block; height: 100%; background: var(--series-blue); border-radius: 0 4px 4px 0; }
+.hue-orange .bar-row-fill { background: var(--series-orange); }
+.bar-row-value { font-size: 0.87rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar-row-note { grid-column: 2 / -1; margin-top: -4px; font-size: 0.72rem; color: var(--text-muted); }
+
+@media (max-width: 620px) {
+  /* Stacked, the filter bar is ~500px tall on a phone — pinning it would eat
+     most of the viewport, so it scrolls away with the rest of the page. The
+     scope chips beside the hero figure carry the active slice from there on. */
+  .filters { position: static; box-shadow: none; }
+  /* The button gets its own full-width row rather than squeezing the select
+     next to it. */
+  .field { flex: 1 1 100%; }
+  .reload { flex: 1 1 100%; padding: 11px 10px; }
+}
+
+@media (max-width: 560px) {
+  .bar-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .bar-row-label { grid-column: 1 / -1; }
+  .bar-row-track { grid-column: 1; }
+  .bar-row-note { grid-column: 1 / -1; }
+}
+
+/* ---- Table view (the non-visual path to the same numbers) ---- */
+.table-view { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.table-view summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  width: fit-content;
+}
+.table-view summary:hover { color: var(--text-primary); }
+/* A wide table scrolls inside its own box; the page body never scrolls
+   sideways. */
+.table-view > div { overflow-x: auto; }
+.table-view table { border-collapse: collapse; margin-top: 10px; width: 100%; font-size: 0.87rem; }
+.table-view th, .table-view td {
+  text-align: left;
+  padding: 7px 14px 7px 0;
+  border-bottom: 1px solid var(--grid-line);
+  white-space: nowrap;
+}
+/* tabular-nums belongs here — these are columns of numbers that must line up. */
+.table-view td { font-variant-numeric: tabular-nums; }
+.table-view thead th { color: var(--text-secondary); font-weight: 600; }
+.table-view tbody th { font-weight: 500; color: var(--text-primary); white-space: normal; }
+
+.empty-note { margin: 0; color: var(--text-muted); font-size: 0.87rem; }
+
+/* ---- Methodology ---- */
+.methodology ul { margin: 12px 0 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.88rem; }
+.methodology li { margin-bottom: 7px; }
+.methodology strong { color: var(--text-primary); font-weight: 600; }
+.source-note { margin: 14px 0 0; color: var(--text-muted); font-size: 0.8rem; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+main { padding-bottom: 56px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill,
+  #results,
+  .bar-row { transition: none; }
+}

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rakentamislupatilastot</title>
+<meta name="description" content="Tilastoja Suomen avoimesta rakentamislupa-aineistosta (Ryhti-rajapinta).">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="page-header">
+  <div class="wrap">
+    <h1>Rakentamislupatilastot</h1>
+    <p class="lede">
+      Tilastoja Suomen avoimesta rakentamislupa-aineistosta. Luvut haetaan suoraan
+      <a href="https://paikkatiedot.ymparisto.fi" rel="noreferrer noopener" target="_blank">Ryhti-rajapinnasta</a>.
+    </p>
+  </div>
+</header>
+
+<main class="wrap">
+  <form class="filters" id="filters" aria-label="Rajaukset">
+    <div class="field">
+      <label for="year">Vuosi</label>
+      <select id="year"></select>
+    </div>
+    <div class="field">
+      <label for="municipality">Kunta</label>
+      <select id="municipality"></select>
+    </div>
+    <div class="field">
+      <label for="purpose">Käyttötarkoitus</label>
+      <select id="purpose"></select>
+    </div>
+    <button type="button" id="reload" class="reload">Päivitä</button>
+  </form>
+
+  <div id="status" class="status" role="status" aria-live="polite" hidden>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <span id="status-text">Haetaan…</span>
+  </div>
+
+  <div id="error" class="error-panel" role="alert" hidden></div>
+
+  <div id="results">
+    <section class="hero-block" aria-labelledby="hero-heading">
+      <h2 id="hero-heading" class="section-title">Lupia yhteensä</h2>
+      <p class="hero-figure" id="total-count">–</p>
+      <p class="scope-chips" id="scope-chips"></p>
+    </section>
+
+    <section class="tiles" aria-label="Tyypilliset arvot">
+      <article class="tile">
+        <h3>Tyypillinen kerrosala</h3>
+        <p class="tile-value" id="typical-area">–</p>
+        <p class="tile-note" id="typical-area-note">Mediaani otoksesta</p>
+      </article>
+      <article class="tile">
+        <h3>Tyypillinen kerrosluku</h3>
+        <p class="tile-value" id="typical-storeys">–</p>
+        <p class="tile-note" id="typical-storeys-note">Mediaani otoksesta</p>
+      </article>
+    </section>
+
+    <section class="card" aria-labelledby="time-heading">
+      <div class="card-head">
+        <h2 id="time-heading" class="section-title">Luvat vuosittain</h2>
+        <p class="section-note">12 vuoden jakso näkyy aina, myös yhden vuoden rajauksella.</p>
+      </div>
+      <div id="chart-years" class="chart"></div>
+      <details class="table-view">
+        <summary>Näytä taulukkona</summary>
+        <div id="table-years"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="purpose-heading">
+      <div class="card-head">
+        <h2 id="purpose-heading" class="section-title">Käyttötarkoitukset</h2>
+        <p class="section-note">Lupien määrä rakennuksen pääkäyttötarkoituksen mukaan.</p>
+      </div>
+      <div id="chart-purposes" class="chart"></div>
+      <details class="table-view">
+        <summary>Näytä taulukkona</summary>
+        <div id="table-purposes"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="muni-count-heading">
+      <div class="card-head">
+        <h2 id="muni-count-heading" class="section-title">Kunnat lupamäärän mukaan</h2>
+        <p class="section-note">Vertailu 34 suurimman kunnan kesken, ei koko maan järjestys.</p>
+      </div>
+      <div id="chart-muni-count" class="chart"></div>
+      <details class="table-view">
+        <summary>Näytä taulukkona</summary>
+        <div id="table-muni-count"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="muni-area-heading">
+      <div class="card-head">
+        <h2 id="muni-area-heading" class="section-title">Kunnat kokonaiskerrosalan mukaan</h2>
+        <p class="section-note" id="muni-area-note">Lasketaan haun yhteydessä.</p>
+      </div>
+      <div id="chart-muni-area" class="chart"></div>
+      <details class="table-view">
+        <summary>Näytä taulukkona</summary>
+        <div id="table-muni-area"></div>
+      </details>
+    </section>
+  </div>
+
+  <section class="card methodology" aria-labelledby="method-heading">
+    <h2 id="method-heading" class="section-title">Menetelmä ja rajoitukset</h2>
+    <ul>
+      <li><strong>Lupien määrät ovat tarkkoja.</strong> Ne tulevat rajapinnan osumalaskurista, eivät otoksesta.</li>
+      <li><strong>Kuntien kokonaiskerrosalat ovat tarkkoja summia.</strong> Yhden vuoden rajauksella jokaisen luvan kerrosala haetaan ja lasketaan yhteen. Vain rajauksella ”Kaikki vuodet” käytetään otosta, ja se kerrotaan rivillä.</li>
+      <li><strong>Tyypillinen kerrosala ja kerrosluku ovat otospohjaisia.</strong> Kustakin rajauksesta poimitaan enintään 30 lupaa, ja niistä lasketaan mediaani.</li>
+      <li><strong>Tyypillistä kokoa kuvaa mediaani.</strong> Kerrosala-aineisto on voimakkaasti oikealle vino, joten mediaani kuvaa tyypillistä kokoa paremmin kuin keskiarvo. Summaa arvioitaessa oikea tunnusluku on sen sijaan keskiarvo × lupien määrä.</li>
+      <li><strong>Käytössä on <code>gross_floor_area</code>, ei <code>floor_area</code>.</strong> Jälkimmäinen on täytetty vain noin prosentissa useimpien käyttötarkoitusten luvista.</li>
+      <li><strong>Kuntavertailu kattaa 34 kuntaa.</strong> Kaikkien 309 kunnan läpikäynti vaatisi satoja lisäkutsuja jokaisella latauksella.</li>
+    </ul>
+    <p class="source-note">
+      Lähde: Suomen ympäristökeskus (SYKE), rakentamislupa-aineisto
+      <a href="https://www.syke.fi/fi/ymparistotieto/avoimet-rajapinnat/paikkatietorajapinnat" rel="noreferrer noopener" target="_blank">avoimista paikkatietorajapinnoista</a>
+      (kokoelma <code>open_permit_building</code>). Aineisto on lisensoitu
+      <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="noreferrer noopener" target="_blank">CC BY 4.0</a> -lisenssillä.
+    </p>
+  </section>
+</main>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
