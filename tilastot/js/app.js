@@ -1,5 +1,14 @@
 import { loadStatistics, selectableYears, roundToTwoSignificantFigures } from "./stats.js";
-import { renderColumnChart, renderBarRows, renderTable, formatNumber } from "./charts.js";
+import {
+  renderColumnChart,
+  renderBarRows,
+  renderTable,
+  renderDonutChart,
+  renderLineChart,
+  renderDivergingColumnChart,
+  formatNumber,
+  formatPercentDelta,
+} from "./charts.js";
 import { yearRange } from "./cql.js";
 import { BUILDING_PURPOSES } from "./codelists.js";
 import { MUNICIPALITY_NAMES } from "./municipalities.js";
@@ -22,7 +31,12 @@ const ui = {
   typicalStoreys: el("typical-storeys"),
   typicalStoreysNote: el("typical-storeys-note"),
   chartYears: el("chart-years"),
+  chartYoy: el("chart-yoy"),
   tableYears: el("table-years"),
+  chartMedianArea: el("chart-median-area"),
+  tableMedianArea: el("table-median-area"),
+  chartPurposeSplit: el("chart-purpose-split"),
+  purposeNote: el("purpose-note"),
   chartPurposes: el("chart-purposes"),
   chartMuniCount: el("chart-muni-count"),
   chartMuniArea: el("chart-muni-area"),
@@ -173,6 +187,64 @@ function renderScopeChips(state) {
   }
 }
 
+/**
+ * Ring slot for a building purpose, fixed by its CODE and never by its rank.
+ *
+ * This is the whole reason the mapping lives here rather than being computed
+ * from the sorted breakdown: change the municipality filter and Pientalo may
+ * stop being the biggest purpose, but it must keep its color. A ring that
+ * repaints itself when the ordering shifts is unreadable across filters.
+ *
+ * The order of BUILDING_PURPOSES is also the ring order, and that order is
+ * load-bearing: slots 1-7 (blue, orange, aqua, yellow, magenta, violet, green)
+ * were validated so every adjacent pair — including green wrapping back to blue
+ * where the ring closes — clears the colorblind and normal-vision separation
+ * gates in both light and dark mode. Violet beside blue fails in dark, which is
+ * why green and not violet closes the ring. Reordering this list re-opens that
+ * question.
+ */
+const purposeSlot = (code) => BUILDING_PURPOSES.findIndex((p) => p.code === code) + 1;
+
+/** Share of a whole, as a Finnish percentage. One decimal below 10 %, none above. */
+function shareLabel(value, total) {
+  if (!total || !Number.isFinite(value)) return "–";
+  const pct = (value / total) * 100;
+  const decimals = pct < 10 ? 1 : 0;
+  return `${pct.toLocaleString("fi-FI", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} %`;
+}
+
+/**
+ * Year-over-year change in permit counts.
+ *
+ * Derived from the year buckets that are already loaded, so this costs no extra
+ * request, and from the exact hit counts rather than any sample — these deltas
+ * are as accurate as the counts they come from.
+ *
+ * Three cases yield null rather than a number, because in each of them a
+ * percentage would be an artifact rather than a measurement:
+ *
+ *  * The first year in the window has no predecessor inside it.
+ *  * A zero baseline has no meaningful percentage change — reporting it would
+ *    mean printing an infinite rise.
+ *  * The CURRENT year is still accumulating. Comparing a part-year against a
+ *    full one manufactures a collapse of exactly the size of the remaining
+ *    months, and on this page it would land on the tallest bar in the chart.
+ *    The year filter already defaults away from the current year for the same
+ *    reason; the twelve-year charts cannot, so the delta is withheld instead.
+ */
+function yearOverYear(buckets) {
+  const currentYear = new Date().getUTCFullYear();
+  return buckets.map((bucket, index) => {
+    const previous = index === 0 ? null : buckets[index - 1];
+    const comparable = previous !== null && previous.count > 0 && bucket.year !== currentYear;
+    return {
+      year: bucket.year,
+      count: bucket.count,
+      delta: comparable ? (bucket.count - previous.count) / previous.count : null,
+    };
+  });
+}
+
 function render(result, state) {
   ui.totalCount.textContent = result.totalCount === null ? "–" : formatNumber(result.totalCount);
   renderScopeChips(state);
@@ -189,19 +261,65 @@ function render(result, state) {
       : "Ei kerroslukutietoja otoksessa";
 
   renderColumnChart(ui.chartYears, result.yearBuckets);
-  renderYearTable(result.yearBuckets);
+  const deltas = yearOverYear(result.yearBuckets);
+  renderDivergingColumnChart(ui.chartYoy, deltas);
+  renderYearTable(result.yearBuckets, deltas);
+
+  renderLineChart(
+    ui.chartMedianArea,
+    result.yearBuckets.map((b) => ({ year: b.year, value: b.medianGrossFloorArea }))
+  );
+  renderTable(
+    ui.tableMedianArea,
+    ["Vuosi", "Mediaanikerrosala", "Otoskoko"],
+    result.yearBuckets.map((b) => [
+      String(b.year),
+      b.medianGrossFloorArea === null ? "–" : `${formatNumber(b.medianGrossFloorArea)} m²`,
+      // The sample size travels with every sample-derived figure, so a thin year
+      // is visible instead of hiding behind a confident-looking median.
+      `n = ${formatNumber(b.grossFloorAreas.length)}`,
+    ])
+  );
+
+  // The seven purposes partition the permits that carry a purpose code, so THEY
+  // are the whole the shares are taken from — not the headline total, which also
+  // counts permits with no purpose recorded. Dividing by the headline total would
+  // quietly make every share too small.
+  const classifiedTotal = result.purposeBreakdown.reduce((sum, p) => sum + p.count, 0);
+
+  // Ring order = code order, so a slice keeps its color and its position under
+  // every filter. The bar rows below stay sorted by count, which is the ranking
+  // read; the ring is the shape read.
+  renderDonutChart(
+    ui.chartPurposeSplit,
+    BUILDING_PURPOSES.map((purpose) => ({
+      label: purpose.shortName,
+      value: result.purposeBreakdown.find((p) => p.code === purpose.code)?.count ?? 0,
+      slot: purposeSlot(purpose.code),
+    })),
+    { centerLabel: "lupaa luokiteltu", unitLabel: "lupaa", legendValues: false }
+  );
 
   // Short name on the chart (the official name wraps to three lines and pushes
   // the bars into a narrow column); the full official name in the table.
   renderBarRows(
     ui.chartPurposes,
-    result.purposeBreakdown.map((p) => ({ label: p.shortName ?? p.name, value: p.count }))
+    result.purposeBreakdown.map((p) => ({
+      label: p.shortName ?? p.name,
+      value: p.count,
+      shareLabel: shareLabel(p.count, classifiedTotal),
+    }))
   );
   renderTable(
     ui.tablePurposes,
-    ["Käyttötarkoitus", "Lupia"],
-    result.purposeBreakdown.map((p) => [p.name, formatNumber(p.count)])
+    ["Käyttötarkoitus", "Lupia", "Osuus"],
+    result.purposeBreakdown.map((p) => [
+      p.name,
+      formatNumber(p.count),
+      shareLabel(p.count, classifiedTotal),
+    ])
   );
+  renderPurposeNote(result.totalCount, classifiedTotal);
 
   renderBarRows(
     ui.chartMuniCount,
@@ -261,25 +379,52 @@ function render(result, state) {
       "tarkkaan summaan, joten luku voi heittää kaksinkertaisesti kumpaankin suuntaan.";
 }
 
-function renderYearTable(buckets) {
+function renderYearTable(buckets, deltas) {
   renderTable(
     ui.tableYears,
-    ["Vuosi", "Lupia", "Mediaanikerrosala"],
-    buckets.map((b) => [
+    ["Vuosi", "Lupia", "Muutos", "Mediaanikerrosala"],
+    buckets.map((b, index) => [
       String(b.year),
       formatNumber(b.count),
+      deltas[index].delta === null ? "–" : formatPercentDelta(deltas[index].delta),
       b.medianGrossFloorArea === null ? "–" : `${formatNumber(b.medianGrossFloorArea)} m²`,
     ])
   );
 }
 
-// The SVG column chart is laid out in real pixels, so it must be re-rendered
-// when the container width changes; the HTML bar rows reflow on their own.
+/**
+ * Says what the donut's whole actually is.
+ *
+ * The purpose counts need not add up to the headline total — a permit with no
+ * purpose code is counted in one and not the other — so when they differ the
+ * card has to say so, or the shares read as shares of the wrong number.
+ */
+function renderPurposeNote(totalCount, classifiedTotal) {
+  if (!ui.purposeNote) return;
+  const base = "Lupien määrä rakennuksen pääkäyttötarkoituksen mukaan.";
+  const unclassified = totalCount === null ? 0 : totalCount - classifiedTotal;
+  ui.purposeNote.textContent =
+    unclassified > 0
+      ? `${base} Osuudet lasketaan luokitelluista luvista; ${formatNumber(unclassified)} luvassa ` +
+        "käyttötarkoitusta ei ole ilmoitettu, eivätkä ne ole mukana jakaumassa."
+      : base;
+}
+
+// The time-axis SVG charts are laid out in real pixels, so they must be
+// re-rendered when the container width changes; the HTML bar rows reflow on
+// their own, and the donut scales with its viewBox.
 let resizeTimer = null;
 window.addEventListener("resize", () => {
   if (!lastResult) return;
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => renderColumnChart(ui.chartYears, lastResult.yearBuckets), 150);
+  resizeTimer = setTimeout(() => {
+    renderColumnChart(ui.chartYears, lastResult.yearBuckets);
+    renderDivergingColumnChart(ui.chartYoy, yearOverYear(lastResult.yearBuckets));
+    renderLineChart(
+      ui.chartMedianArea,
+      lastResult.yearBuckets.map((b) => ({ year: b.year, value: b.medianGrossFloorArea }))
+    );
+  }, 150);
 });
 
 populateFilters();

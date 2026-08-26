@@ -14,6 +14,22 @@
   --border: rgba(11, 11, 11, 0.10);
   --series-blue: #2a78d6;
   --series-orange: #eb6834;
+  /* Categorical slots 3-7, used only by the purpose donut. Slots 1-2 are the
+     blue/orange above, so the donut shares the page's existing two series
+     colors rather than introducing a parallel palette. The ring order
+     (blue, orange, aqua, yellow, magenta, violet, green, wrapping back to
+     blue) was chosen so every adjacent pair clears the CVD and normal-vision
+     separation gates in BOTH modes — violet beside blue fails in dark, which
+     is why green rather than violet closes the ring. */
+  --series-aqua: #1baf7a;
+  --series-yellow: #eda100;
+  --series-magenta: #e87ba4;
+  --series-violet: #4a3aa7;
+  --series-green: #008300;
+  /* Diverging pair for the year-over-year chart: blue up, red down, with the
+     zero line as the neutral midpoint. */
+  --series-positive: #2a78d6;
+  --series-negative: #e34948;
   --track: #eceae4;
   --critical: #d03b3b;
   --focus: #2a78d6;
@@ -35,6 +51,15 @@
     --border: rgba(255, 255, 255, 0.10);
     --series-blue: #3987e5;
     --series-orange: #d95926;
+    --series-aqua: #199e70;
+    --series-yellow: #c98500;
+    --series-magenta: #d55181;
+    --series-violet: #9085e9;
+    --series-green: #008300;
+    /* Diverging pair for the year-over-year chart: blue up, red down, with the
+       zero line as the neutral midpoint. */
+    --series-positive: #3987e5;
+    --series-negative: #e66767;
     --track: #262624;
     --critical: #e66767;
     --focus: #3987e5;
@@ -56,6 +81,15 @@
   --border: rgba(255, 255, 255, 0.10);
   --series-blue: #3987e5;
   --series-orange: #d95926;
+  --series-aqua: #199e70;
+  --series-yellow: #c98500;
+  --series-magenta: #d55181;
+  --series-violet: #9085e9;
+  --series-green: #008300;
+  /* Diverging pair for the year-over-year chart: blue up, red down, with the
+     zero line as the neutral midpoint. */
+  --series-positive: #3987e5;
+  --series-negative: #e66767;
   --track: #262624;
   --critical: #e66767;
   --focus: #3987e5;
@@ -279,6 +313,135 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
   .bar-row-label { grid-column: 1 / -1; }
   .bar-row-track { grid-column: 1; }
   .bar-row-note { grid-column: 1 / -1; }
+}
+
+/* A second chart inside one card: the two answer different questions about the
+   same numbers (level vs change, shape vs ranking), so they share a card and a
+   table rather than each claiming their own. */
+.sub-chart { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+.sub-title { margin: 0 0 2px; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); }
+.sub-chart .section-note { margin-bottom: 10px; }
+
+/* ---- Share column on the bar rows ---- */
+/* Counts answer "how many", the share answers "how much of the whole" — the
+   read a pie is usually reached for. Adding it as a column keeps both reads in
+   the chart that already ranks correctly, instead of splitting them across two
+   figures. Only the purpose rows opt in; the municipality rankings are a capped
+   34-candidate subset that does not sum to a whole, so a share there would be a
+   percentage of nothing. */
+.bar-rows.has-share .bar-row { grid-template-columns: minmax(0, 11rem) minmax(60px, 1fr) auto 3.4rem; }
+.bar-row-share {
+  font-size: 0.87rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---- Donut (part-to-whole) ---- */
+.donut-chart { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; }
+.donut-figure { flex: 0 0 auto; width: 210px; max-width: 100%; }
+.donut-slice {
+  /* A 2px ring in the card's own surface color between neighbouring segments,
+     per the mark spec — the gap, not the hue alone, is what separates two
+     slices for a reader who cannot tell the hues apart. */
+  stroke: var(--surface-1);
+  stroke-width: 2;
+  transition: opacity 120ms ease;
+}
+.donut-figure:hover .donut-slice { opacity: 0.45; }
+.donut-figure .donut-slice:hover,
+.donut-figure .donut-slice:focus-visible { opacity: 1; }
+.donut-slice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Text in the hole wears text tokens, never a series color. */
+.donut-center-value {
+  fill: var(--text-primary);
+  font-size: 26px;
+  font-weight: 700;
+  text-anchor: middle;
+  font-variant-numeric: proportional-nums;
+}
+.donut-center-label { fill: var(--text-muted); font-size: 11px; text-anchor: middle; }
+
+/* The legend is not optional here: three of the seven light-mode slot colors
+   sit below 3:1 against the card surface, so the written name carries identity
+   and the color only reinforces it. */
+/* Capped so the two key columns stay beside the ring instead of drifting to the
+   far edge of a wide card, which leaves the swatches stranded from the shape
+   they are labelling. */
+.donut-legend { flex: 1 1 240px; max-width: 440px; list-style: none; margin: 0; padding: 0; min-width: 0; }
+.legend-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto 3.4rem;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+.legend-item:hover { background: var(--chip-bg); }
+/* Key-only: swatch and name, no figures. Used where bar rows directly below
+   carry the counts and shares. */
+.donut-legend.key-only { columns: 2; column-gap: 18px; }
+.donut-legend.key-only .legend-item { grid-template-columns: 10px minmax(0, 1fr); break-inside: avoid; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 3px; align-self: center; }
+.legend-label { font-size: 0.85rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+.legend-value { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.legend-share {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Categorical slots, in ring order. Assigned by building purpose CODE, never by
+   rank — a filter that reorders the purposes must not repaint them. */
+.slot-1 { fill: var(--series-blue); }
+.slot-2 { fill: var(--series-orange); }
+.slot-3 { fill: var(--series-aqua); }
+.slot-4 { fill: var(--series-yellow); }
+.slot-5 { fill: var(--series-magenta); }
+.slot-6 { fill: var(--series-violet); }
+.slot-7 { fill: var(--series-green); }
+.swatch-1 { background: var(--series-blue); }
+.swatch-2 { background: var(--series-orange); }
+.swatch-3 { background: var(--series-aqua); }
+.swatch-4 { background: var(--series-yellow); }
+.swatch-5 { background: var(--series-magenta); }
+.swatch-6 { background: var(--series-violet); }
+.swatch-7 { background: var(--series-green); }
+
+/* ---- Line chart (median size over time) ---- */
+.line-mark { fill: none; stroke: var(--series-orange); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+/* A 2px surface ring so a dot stays readable where it overlaps the line. */
+.line-dot { fill: var(--series-orange); stroke: var(--surface-1); stroke-width: 2; }
+.crosshair { stroke: var(--axis-line); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* ---- Diverging columns (year-over-year change) ---- */
+.bar-mark-positive { fill: var(--series-positive); }
+.bar-mark-negative { fill: var(--series-negative); }
+/* The zero line is the neutral midpoint of the diverging scale, so it reads a
+   step stronger than an ordinary gridline. */
+.zero-line { stroke: var(--axis-line); stroke-width: 1; }
+.delta-label {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  /* Label on its own row, then track + count + share together on the next — the
+     share must not fall to a third row, which would double the height of every
+     entry on a phone. */
+  .bar-rows.has-share .bar-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .bar-rows.has-share .bar-row-label { grid-column: 1 / -1; }
+  .bar-rows.has-share .bar-row-track { grid-column: 1; }
+  .bar-rows.has-share .bar-row-note { grid-column: 1 / -1; }
+  .bar-row-share { text-align: left; }
+  .donut-chart { gap: 16px; }
+  .donut-figure { width: 100%; max-width: 240px; margin: 0 auto; }
+  .donut-legend.key-only { columns: 1; }
 }
 
 /* ---- Table view (the non-visual path to the same numbers) ---- */
