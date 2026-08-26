@@ -12,7 +12,6 @@ import {
 import { yearRange } from "./cql.js";
 import { BUILDING_PURPOSES } from "./codelists.js";
 import { MUNICIPALITY_NAMES } from "./municipalities.js";
-import { APIError } from "./api.js";
 
 const el = (id) => document.getElementById(id);
 
@@ -101,28 +100,11 @@ function setBusy(isBusy) {
 
 function showError(error) {
   ui.error.hidden = false;
-  const isNetwork = error instanceof APIError && error.isNetwork;
   ui.error.innerHTML = "";
 
   const message = document.createElement("p");
   message.textContent = error?.message ?? "Tietojen haku epäonnistui.";
   ui.error.appendChild(message);
-
-  // The proxy hint is a local-development affordance and only works there, so
-  // it is shown only there. On a static host it would point the reader at a
-  // URL that cannot exist.
-  const isLocal = ["localhost", "127.0.0.1", "[::1]", "::1"].includes(window.location.hostname);
-  if (isNetwork && isLocal) {
-    const hint = document.createElement("p");
-    hint.append("Paikallisesti voit myös kokeilla välityspalvelinta: ");
-    const code = document.createElement("code");
-    code.textContent = "node web/server.js";
-    hint.append(code, " ja ");
-    const url = document.createElement("code");
-    url.textContent = "http://localhost:8000/?proxy=1";
-    hint.append(url, ".");
-    ui.error.appendChild(hint);
-  }
 }
 
 async function refresh() {
@@ -297,7 +279,7 @@ function render(result, state) {
       value: result.purposeBreakdown.find((p) => p.code === purpose.code)?.count ?? 0,
       slot: purposeSlot(purpose.code),
     })),
-    { centerLabel: "lupaa luokiteltu", unitLabel: "lupaa", legendValues: false }
+    { centerLabel: "luokiteltua lupaa", unitLabel: "lupaa", legendValues: false }
   );
 
   // Short name on the chart (the official name wraps to three lines and pushes
@@ -368,15 +350,16 @@ function render(result, state) {
   if (result.municipalityDataIncomplete) {
     ui.muniAreaNote.textContent =
       "Kuntakohtaisia lukuja ei voitu laskea, koska osa hausta epäonnistui. " +
-      "Vaillinaisia summia ei näytetä, koska ne näyttäisivät liian pieniltä. Yritä uudelleen.";
+      "Puutteellisia summia ei näytetä, koska ne jäisivät todellista pienemmiksi. Yritä uudelleen.";
     return;
   }
 
   ui.muniAreaNote.textContent = result.municipalityFiguresAreExact
     ? "Kaikkien rajaukseen osuvien lupien kerrosalat on laskettu yhteen. " +
       "Rivillä näkyy, kuinka monessa luvassa kerrosala on ilmoitettu."
-    : "Arvio: otoksen keskimääräinen kerrosala × lupien määrä. Rajaus on liian laaja " +
-      "tarkkaan summaan, joten luku voi heittää kaksinkertaisesti kumpaankin suuntaan.";
+    : "Arvio: otoksen keskimääräinen kerrosala × lupien määrä. Rajaus on niin laaja, ettei " +
+      "tarkkaa summaa lasketa, joten luku voi poiketa todellisesta jopa kaksinkertaisesti " +
+      "kumpaan suuntaan tahansa.";
 }
 
 function renderYearTable(buckets, deltas) {
@@ -405,8 +388,8 @@ function renderPurposeNote(totalCount, classifiedTotal) {
   const unclassified = totalCount === null ? 0 : totalCount - classifiedTotal;
   ui.purposeNote.textContent =
     unclassified > 0
-      ? `${base} Osuudet lasketaan luokitelluista luvista; ${formatNumber(unclassified)} luvassa ` +
-        "käyttötarkoitusta ei ole ilmoitettu, eivätkä ne ole mukana jakaumassa."
+      ? `${base} Osuudet lasketaan luokitelluista luvista: ${formatNumber(unclassified)} luvalta ` +
+        "pääkäyttötarkoitus puuttuu, eivätkä ne ole mukana jakaumassa."
       : base;
 }
 

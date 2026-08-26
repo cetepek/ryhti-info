@@ -5,7 +5,7 @@ const DIRECT_BASE =
   "https://paikkatiedot.ymparisto.fi/geoserver/ryhti_permit/ogc/features/v1/collections";
 
 /**
- * Whether to route requests through the bundled server.js proxy.
+ * Whether to route requests through a local development proxy.
  *
  * The proxy is a LOCAL DEVELOPMENT tool: it only exists because the upstream
  * host's CORS posture was unknown when this was written. It has since been
