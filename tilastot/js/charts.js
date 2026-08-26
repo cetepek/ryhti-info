@@ -389,9 +389,17 @@ function donutSlicePath(cx, cy, rOuter, rInner, startAngle, endAngle) {
  *   Off where the ring sits above bar rows carrying the same numbers — there the
  *   legend is a color key and nothing more, and repeating the figures twice in
  *   one card would be noise rather than redundancy that earns its place.
+ * @param {number|null} [options.emphasisSlot] hold this slot at full strength and
+ *   mute the rest. Used when a filter elsewhere on the page has singled out one
+ *   category, so the ring shows where that category sits inside the whole.
  */
 export function renderDonutChart(container, segments, options = {}) {
-  const { centerLabel = "yhteensä", unitLabel = "lupaa", legendValues = true } = options;
+  const {
+    centerLabel = "yhteensä",
+    unitLabel = "lupaa",
+    legendValues = true,
+    emphasisSlot = null,
+  } = options;
   container.innerHTML = "";
 
   const drawable = (segments ?? []).filter((s) => Number.isFinite(s.value) && s.value > 0);
@@ -425,22 +433,40 @@ export function renderDonutChart(container, segments, options = {}) {
     "aria-label": `Lupien jakauma käyttötarkoituksittain, yhteensä ${formatNumber(total)} ${unitLabel}`,
   });
 
+  const slices = [];
   let angle = -Math.PI / 2;
   for (const segment of drawable) {
     const sweep = share(segment.value) * Math.PI * 2;
+    const muted = emphasisSlot !== null && segment.slot !== emphasisSlot;
     const path = svgEl("path", {
       d: donutSlicePath(cx, cy, rOuter, rInner, angle, angle + sweep),
-      class: `donut-slice slot-${segment.slot}`,
+      class: `donut-slice slot-${segment.slot}${muted ? " is-muted" : ""}`,
       tabindex: "0",
       role: "img",
       "aria-label": `${segment.label}: ${formatNumber(segment.value)} ${unitLabel}, ${shareLabel(segment.value)}`,
     });
-    const show = () =>
+
+    // Hover emphasis is applied here rather than by a CSS :hover on the <svg>
+    // root. A ring segment's own centre point lies in the hole, and the root
+    // svg's box covers the four corners outside the ring — so a selector hung
+    // off the root fires in places the reader is not pointing at anything, and
+    // misses where they are. Driving it from the slice's own pointer events is
+    // the only version that tracks what is actually under the cursor.
+    const enter = () => {
+      for (const other of slices) other.classList.toggle("is-dimmed", other !== path);
+      path.classList.add("is-hot");
       showTooltip(path, `${formatNumber(segment.value)} ${unitLabel} · ${shareLabel(segment.value)}`, segment.label);
-    path.addEventListener("pointerenter", show);
-    path.addEventListener("focus", show);
-    path.addEventListener("pointerleave", hideTooltip);
-    path.addEventListener("blur", hideTooltip);
+    };
+    const leave = () => {
+      for (const other of slices) other.classList.remove("is-dimmed", "is-hot");
+      hideTooltip();
+    };
+    path.addEventListener("pointerenter", enter);
+    path.addEventListener("focus", enter);
+    path.addEventListener("pointerleave", leave);
+    path.addEventListener("blur", leave);
+
+    slices.push(path);
     svg.appendChild(path);
     angle += sweep;
   }
@@ -457,7 +483,8 @@ export function renderDonutChart(container, segments, options = {}) {
   legend.className = `donut-legend${legendValues ? "" : " key-only"}`;
   for (const segment of segments ?? []) {
     const item = document.createElement("li");
-    item.className = "legend-item";
+    const muted = emphasisSlot !== null && segment.slot !== emphasisSlot;
+    item.className = `legend-item${muted ? " is-muted" : ""}`;
 
     const swatch = document.createElement("span");
     swatch.className = `legend-swatch swatch-${segment.slot}`;
@@ -686,7 +713,7 @@ export function renderDivergingColumnChart(container, data) {
       svgEl("line", { x1: pad.left, y1: y, x2: width - pad.right, y2: y, class: isZero ? "zero-line" : "grid-line" })
     );
     const label = svgEl("text", { x: pad.left - 8, y: y + 4, class: "axis-label", "text-anchor": "end" });
-    label.textContent = `${value > 0 ? "+" : ""}${formatNumber(value)} %`;
+    label.textContent = formatAxisPercent(value, step);
     svg.appendChild(label);
   }
 
@@ -770,6 +797,27 @@ export function renderDivergingColumnChart(container, data) {
   });
 
   container.appendChild(svg);
+}
+
+/**
+ * One percent tick, at the precision its own step actually resolves.
+ *
+ * Rounding every tick to a whole percent breaks as soon as the step is
+ * fractional — a half-percent step renders as "-1 %, -1 %, -0 %, 0 %, +1 %,
+ * +1 %", with duplicate labels and a negative zero. That is the normal case
+ * whenever the largest year-over-year change is only a few percent, which is
+ * exactly what a single stable municipality looks like.
+ */
+function formatAxisPercent(value, step) {
+  const decimals = step >= 1 ? 0 : step >= 0.1 ? 1 : 2;
+  // Number() collapses a negative zero produced by rounding, so a tick just
+  // below the zero line cannot render as "-0 %".
+  const rounded = Number(value.toFixed(decimals)) || 0;
+  const text = rounded.toLocaleString("fi-FI", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${rounded > 0 ? "+" : ""}${text} %`;
 }
 
 /** Signed percentage, always carrying its sign so a rise never reads as a level. */
