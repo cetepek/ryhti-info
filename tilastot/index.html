@@ -68,18 +68,50 @@
         <p class="section-note">12 vuoden jakso näkyy aina, myös yhden vuoden rajauksella.</p>
       </div>
       <div id="chart-years" class="chart"></div>
+
+      <div class="sub-chart">
+        <h3 class="sub-title">Muutos edellisvuoteen</h3>
+        <p class="section-note">
+          Sininen ylös = kasvua, punainen alas = laskua, nollaviiva = ei muutosta. Muutos
+          lasketaan tarkoista lupamääristä. Kuluvalta vuodelta muutosta ei näytetä, koska
+          kesken oleva vuosi verrattuna kokonaiseen näyttäisi romahdukselta.
+        </p>
+        <div id="chart-yoy" class="chart"></div>
+      </div>
+
       <details class="table-view">
         <summary>Näytä taulukkona</summary>
         <div id="table-years"></div>
       </details>
     </section>
 
+    <section class="card" aria-labelledby="median-area-heading">
+      <div class="card-head">
+        <h2 id="median-area-heading" class="section-title">Tyypillinen kerrosala vuosittain</h2>
+        <p class="section-note">
+          Mediaanikerrosala kunkin vuoden otoksesta. Pystyakseli ei ala nollasta, koska
+          mediaanit liikkuvat kapealla välillä — nollasta alkava akseli litistäisi koko
+          jakson suoraksi viivaksi. Katkos viivassa tarkoittaa, ettei siltä vuodelta
+          osunut otokseen yhtään kerrosalatietoa.
+        </p>
+      </div>
+      <div id="chart-median-area" class="chart"></div>
+      <details class="table-view">
+        <summary>Näytä taulukkona</summary>
+        <div id="table-median-area"></div>
+      </details>
+    </section>
+
     <section class="card" aria-labelledby="purpose-heading">
       <div class="card-head">
         <h2 id="purpose-heading" class="section-title">Käyttötarkoitukset</h2>
-        <p class="section-note">Lupien määrä rakennuksen pääkäyttötarkoituksen mukaan.</p>
+        <p class="section-note" id="purpose-note">Lupien määrä rakennuksen pääkäyttötarkoituksen mukaan.</p>
       </div>
-      <div id="chart-purposes" class="chart"></div>
+      <div id="chart-purpose-split" class="chart"></div>
+      <div class="sub-chart">
+        <h3 class="sub-title">Määrät ja osuudet</h3>
+        <div id="chart-purposes" class="chart"></div>
+      </div>
       <details class="table-view">
         <summary>Näytä taulukkona</summary>
         <div id="table-purposes"></div>
@@ -120,6 +152,9 @@
       <li><strong>Tyypillistä kokoa kuvaa mediaani.</strong> Kerrosala-aineisto on voimakkaasti oikealle vino, joten mediaani kuvaa tyypillistä kokoa paremmin kuin keskiarvo. Summaa arvioitaessa oikea tunnusluku on sen sijaan keskiarvo × lupien määrä.</li>
       <li><strong>Käytössä on <code>gross_floor_area</code>, ei <code>floor_area</code>.</strong> Jälkimmäinen on täytetty vain noin prosentissa useimpien käyttötarkoitusten luvista.</li>
       <li><strong>Kuntavertailu kattaa 34 kuntaa.</strong> Kaikkien 309 kunnan läpikäynti vaatisi satoja lisäkutsuja jokaisella latauksella.</li>
+      <li><strong>Vuosimuutos on tarkka, mediaanikerrosalan kehitys ei.</strong> Muutosprosentit lasketaan rajapinnan osumalaskurin tarkoista luvuista. Vuosittainen mediaanikerrosala sen sijaan tulee kunkin vuoden enintään 30 luvan otoksesta, joten se kuvaa suuntaa eikä tarkkaa tasoa.</li>
+      <li><strong>Osuudet lasketaan luokitelluista luvista.</strong> Seitsemän käyttötarkoitusta jakavat ne luvat, joissa pääkäyttötarkoitus on ilmoitettu. Jos osa luvista on ilman käyttötarkoitusta, ne jäävät jakauman ulkopuolelle ja määrä kerrotaan käyttötarkoituskortissa.</li>
+      <li><strong>Käyttötarkoituksen väri on kiinteä.</strong> Väri seuraa käyttötarkoitusta eikä sen sijoitusta, joten sama rakennustyyppi on samanvärinen rajauksesta toiseen. Värit on valittu niin, että vierekkäiset sektorit erottuvat toisistaan myös yleisimmillä värinäön poikkeamilla — väri ei silti ole ainoa tunniste, vaan jokainen sektori on nimetty selitteessä ja taulukossa.</li>
     </ul>
     <p class="source-note">
       Lähde: Suomen ympäristökeskus (SYKE), rakentamislupa-aineisto
