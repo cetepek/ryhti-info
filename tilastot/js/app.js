@@ -306,7 +306,16 @@ function render(result, state) {
       slot: purposeSlot(purpose.code),
     })),
     {
-      centerLabel: activePurpose ? "kaikki käyttötarkoitukset" : "lupaa luokiteltu",
+      // Both captions sit directly under the count, so they have to read as one
+      // phrase with it: a numeral takes the partitive singular ("18 717
+      // luokiteltua lupaa"), not a nominative plural and not a trailing
+      // participle.
+      // Kept short on purpose: the hole is only ~105px wide at the caption's
+      // baseline, and "lupaa kaikissa käyttötarkoituksissa" runs out across the
+      // ring even split over two lines. The caption only has to stop this
+      // number being read as the filtered headline figure — the note above the
+      // chart carries the full explanation.
+      centerLabel: activePurpose ? "lupaa kaikkiaan" : "luokiteltua lupaa",
       unitLabel: "lupaa",
       legendValues: false,
       emphasisSlot: activePurpose ? purposeSlot(activePurpose) : null,
@@ -424,19 +433,22 @@ function renderPurposeNote(totalCount, classifiedTotal, activePurpose) {
 
   if (activePurpose) {
     const name = BUILDING_PURPOSES.find((p) => p.code === activePurpose)?.shortName ?? "valittu tyyppi";
+    // Finnish quotation marks are ”…” on both sides, not the English “…”.
     ui.purposeNote.textContent =
-      `${base} Tämä kortti näyttää aina kaikki seitsemän käyttötarkoitusta, myös nyt kun ` +
-      `rajaus on “${name}” — niin näet, kuinka suuri osuus se on koko aineistosta. ` +
+      `${base} Tämä kortti näyttää aina kaikki seitsemän käyttötarkoitusta, myös nyt, kun ` +
+      `rajaus on ”${name}” — jotta näet, kuinka suuri sen osuus on koko aineistosta. ` +
       "Siksi kortin luvut ovat suurempia kuin sivun yläreunan lupamäärä, joka koskee vain " +
-      `rajattua tyyppiä. ${name} on korostettu.`;
+      "rajattua tyyppiä. Valittu käyttötarkoitus on korostettu kuviossa.";
     return;
   }
 
   const unclassified = totalCount === null ? 0 : totalCount - classifiedTotal;
+  // One clause with a relative pronoun, rather than an inessive count followed
+  // by a plural pronoun with nothing to agree with.
   ui.purposeNote.textContent =
     unclassified > 0
-      ? `${base} Osuudet lasketaan luokitelluista luvista; ${formatNumber(unclassified)} luvassa ` +
-        "käyttötarkoitusta ei ole ilmoitettu, eivätkä ne ole mukana jakaumassa."
+      ? `${base} Osuudet lasketaan luokitelluista luvista. Jakaumasta puuttuu ` +
+        `${formatNumber(unclassified)} lupaa, joissa käyttötarkoitusta ei ole ilmoitettu.`
       : base;
 }
 

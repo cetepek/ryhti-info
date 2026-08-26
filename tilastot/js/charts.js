@@ -383,7 +383,8 @@ function donutSlicePath(cx, cy, rOuter, rInner, startAngle, endAngle) {
  * @param {HTMLElement} container
  * @param {Array<{label:string,value:number,slot:number}>} segments  fixed order, slot 1-7
  * @param {object} [options]
- * @param {string} [options.centerLabel]   caption under the figure in the hole
+ * @param {string} [options.centerLabel]   caption under the figure in the hole.
+ *   Break it with \n where it is too long for the hole — SVG text will not wrap.
  * @param {string} [options.unitLabel]     noun for the tooltip ("lupaa")
  * @param {boolean} [options.legendValues] print counts and shares in the legend.
  *   Off where the ring sits above bar rows carrying the same numbers — there the
@@ -473,11 +474,25 @@ export function renderDonutChart(container, segments, options = {}) {
 
   // The hole is not decoration — it carries the whole the slices are parts of,
   // which is the one number a ring cannot encode in its own geometry.
-  const centerValue = svgEl("text", { x: cx, y: cy + 2, class: "donut-center-value" });
+  //
+  // SVG text does not wrap, and the hole is only ~116px wide, so a caption long
+  // enough to be grammatical ("lupaa kaikissa käyttötarkoituksissa") would run
+  // straight out through the ring. The caller breaks it with \n and each line is
+  // drawn as its own <text>; the block is then centred vertically on the hole so
+  // one-line and two-line captions both sit balanced under the figure.
+  const captionLines = String(centerLabel).split("\n").filter(Boolean);
+  const captionHeight = captionLines.length * 13;
+  const valueBaseline = cy + 2 - (captionHeight - 13) / 2;
+
+  const centerValue = svgEl("text", { x: cx, y: valueBaseline, class: "donut-center-value" });
   centerValue.textContent = formatNumber(total);
-  const centerCaption = svgEl("text", { x: cx, y: cy + 20, class: "donut-center-label" });
-  centerCaption.textContent = centerLabel;
-  svg.append(centerValue, centerCaption);
+  svg.appendChild(centerValue);
+
+  captionLines.forEach((line, index) => {
+    const caption = svgEl("text", { x: cx, y: valueBaseline + 18 + index * 13, class: "donut-center-label" });
+    caption.textContent = line;
+    svg.appendChild(caption);
+  });
 
   const legend = document.createElement("ul");
   legend.className = `donut-legend${legendValues ? "" : " key-only"}`;
@@ -511,6 +526,42 @@ export function renderDonutChart(container, segments, options = {}) {
 
   wrapper.append(svg, legend);
   container.appendChild(wrapper);
+
+  // Only now, once the figure is laid out, can the text be measured. The total
+  // in the hole ranges from three digits (one purpose in one small municipality)
+  // to seven ("Kaikki vuodet" across the whole country), and seven digits at the
+  // display size overruns the hole and crosses the ring. Shrink to fit rather
+  // than either clipping the number or sizing every donut for the worst case.
+  fitInsideHole(centerValue, cx, cy, rInner, 26);
+  for (const line of svg.querySelectorAll(".donut-center-label")) {
+    fitInsideHole(line, cx, cy, rInner, 11);
+  }
+}
+
+/**
+ * Shrinks one centred line until it fits the hole at its own baseline.
+ *
+ * The hole is a circle, so the space available is the chord at that line's
+ * height, not the full diameter — a caption sitting below the figure has
+ * noticeably less room than the figure itself.
+ */
+function fitInsideHole(node, cx, cy, rInner, startSize) {
+  let box;
+  try {
+    box = node.getBBox();
+  } catch {
+    return; // not rendered (detached or display:none); nothing to measure against
+  }
+  const dy = box.y + box.height / 2 - cy;
+  const available = 2 * Math.sqrt(Math.max(rInner * rInner - dy * dy, 0)) - 8;
+  if (available <= 0 || box.width <= available) return;
+  // One proportional step gets within a hair; floor it so a rounding error
+  // cannot leave it a pixel over, and never go below legibility.
+  const scaled = Math.max(Math.floor(startSize * (available / box.width)), 11);
+  // Inline style, not a font-size attribute: the size comes from a stylesheet
+  // rule (.donut-center-value), and a presentation attribute loses to any CSS
+  // declaration, so setAttribute here would silently do nothing.
+  node.style.fontSize = `${scaled}px`;
 }
 
 /* ------------------------------------------------------------------ *
