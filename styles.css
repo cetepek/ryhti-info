@@ -1,0 +1,131 @@
+/* Landing page for the Ryhti app. Standalone by design: it shares the palette
+   token names and values with tilastot/styles.css so the two pages read as one
+   product, but it carries none of that file's chart machinery. */
+
+:root {
+  color-scheme: light;
+  --page-plane: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --border: rgba(11, 11, 11, 0.10);
+  --accent: #2a78d6;
+  --focus: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page-plane: #0d0d0d;
+    --surface-1: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --border: rgba(255, 255, 255, 0.10);
+    --accent: #3987e5;
+    --focus: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page-plane: #0d0d0d;
+  --surface-1: #1a1a19;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --border: rgba(255, 255, 255, 0.10);
+  --accent: #3987e5;
+  --focus: #3987e5;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page-plane);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.page-header { padding: 56px 0 8px; }
+.page-header h1 {
+  margin: 0 0 10px;
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  letter-spacing: -0.02em;
+}
+.lede {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  max-width: 60ch;
+}
+
+main { padding-bottom: 8px; }
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 22px 0;
+}
+.card > :first-child { margin-top: 0; }
+.card > :last-child { margin-bottom: 0; }
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* The English half of a bilingual card. Same weight as the Finnish above it —
+   this is a translation, not a footnote — but set apart by a rule so the two
+   languages do not read as one continuous paragraph. */
+.translation {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+p { margin: 0 0 12px; max-width: 62ch; }
+p:last-child { margin-bottom: 0; }
+
+.feature-list {
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--text-secondary);
+  max-width: 62ch;
+}
+.feature-list li { margin-bottom: 6px; }
+.feature-list li:last-child { margin-bottom: 0; }
+.feature-list strong { color: var(--text-primary); font-weight: 600; }
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 32px;
+  padding: 20px 0 48px;
+}
+.site-footer p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.83rem;
+  max-width: 68ch;
+}
+.site-footer a { color: inherit; }
+
+@media (max-width: 560px) {
+  .page-header { padding-top: 36px; }
+  .card { padding: 16px; }
+}

@@ -12,7 +12,6 @@ import {
 import { yearRange } from "./cql.js";
 import { BUILDING_PURPOSES } from "./codelists.js";
 import { MUNICIPALITY_NAMES } from "./municipalities.js";
-import { APIError } from "./api.js";
 
 const el = (id) => document.getElementById(id);
 
@@ -101,28 +100,11 @@ function setBusy(isBusy) {
 
 function showError(error) {
   ui.error.hidden = false;
-  const isNetwork = error instanceof APIError && error.isNetwork;
   ui.error.innerHTML = "";
 
   const message = document.createElement("p");
   message.textContent = error?.message ?? "Tietojen haku epäonnistui.";
   ui.error.appendChild(message);
-
-  // The proxy hint is a local-development affordance and only works there, so
-  // it is shown only there. On a static host it would point the reader at a
-  // URL that cannot exist.
-  const isLocal = ["localhost", "127.0.0.1", "[::1]", "::1"].includes(window.location.hostname);
-  if (isNetwork && isLocal) {
-    const hint = document.createElement("p");
-    hint.append("Paikallisesti voit myös kokeilla välityspalvelinta: ");
-    const code = document.createElement("code");
-    code.textContent = "node web/server.js";
-    hint.append(code, " ja ");
-    const url = document.createElement("code");
-    url.textContent = "http://localhost:8000/?proxy=1";
-    hint.append(url, ".");
-    ui.error.appendChild(hint);
-  }
 }
 
 async function refresh() {
@@ -306,15 +288,11 @@ function render(result, state) {
       slot: purposeSlot(purpose.code),
     })),
     {
-      // Both captions sit directly under the count, so they have to read as one
-      // phrase with it: a numeral takes the partitive singular ("18 717
-      // luokiteltua lupaa"), not a nominative plural and not a trailing
-      // participle.
-      // Kept short on purpose: the hole is only ~105px wide at the caption's
-      // baseline, and "lupaa kaikissa käyttötarkoituksissa" runs out across the
-      // ring even split over two lines. The caption only has to stop this
-      // number being read as the filtered headline figure — the note above the
-      // chart carries the full explanation.
+      // Both captions sit directly under the count and have to read as one
+      // phrase with it, which is the partitive singular a numeral governs.
+      // The filtered one is also kept short: the hole is only ~105px wide at
+      // the caption's baseline, and it just has to stop this number being read
+      // as the filtered headline figure — the note above carries the rest.
       centerLabel: activePurpose ? "lupaa kaikkiaan" : "luokiteltua lupaa",
       unitLabel: "lupaa",
       legendValues: false,
@@ -390,15 +368,16 @@ function render(result, state) {
   if (result.municipalityDataIncomplete) {
     ui.muniAreaNote.textContent =
       "Kuntakohtaisia lukuja ei voitu laskea, koska osa hausta epäonnistui. " +
-      "Vaillinaisia summia ei näytetä, koska ne näyttäisivät liian pieniltä. Yritä uudelleen.";
+      "Puutteellisia summia ei näytetä, koska ne jäisivät todellista pienemmiksi. Yritä uudelleen.";
     return;
   }
 
   ui.muniAreaNote.textContent = result.municipalityFiguresAreExact
     ? "Kaikkien rajaukseen osuvien lupien kerrosalat on laskettu yhteen. " +
       "Rivillä näkyy, kuinka monessa luvassa kerrosala on ilmoitettu."
-    : "Arvio: otoksen keskimääräinen kerrosala × lupien määrä. Rajaus on liian laaja " +
-      "tarkkaan summaan, joten luku voi heittää kaksinkertaisesti kumpaankin suuntaan.";
+    : "Arvio: otoksen keskimääräinen kerrosala × lupien määrä. Rajaus on niin laaja, ettei " +
+      "tarkkaa summaa lasketa, joten luku voi poiketa todellisesta jopa kaksinkertaisesti " +
+      "kumpaan suuntaan tahansa.";
 }
 
 function renderYearTable(buckets, deltas) {
@@ -443,12 +422,10 @@ function renderPurposeNote(totalCount, classifiedTotal, activePurpose) {
   }
 
   const unclassified = totalCount === null ? 0 : totalCount - classifiedTotal;
-  // One clause with a relative pronoun, rather than an inessive count followed
-  // by a plural pronoun with nothing to agree with.
   ui.purposeNote.textContent =
     unclassified > 0
-      ? `${base} Osuudet lasketaan luokitelluista luvista. Jakaumasta puuttuu ` +
-        `${formatNumber(unclassified)} lupaa, joissa käyttötarkoitusta ei ole ilmoitettu.`
+      ? `${base} Osuudet lasketaan luokitelluista luvista: ${formatNumber(unclassified)} luvalta ` +
+        "pääkäyttötarkoitus puuttuu, eivätkä ne ole mukana jakaumassa."
       : base;
 }
 

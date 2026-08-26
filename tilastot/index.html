@@ -53,12 +53,12 @@
       <article class="tile">
         <h3>Tyypillinen kerrosala</h3>
         <p class="tile-value" id="typical-area">–</p>
-        <p class="tile-note" id="typical-area-note">Mediaani otoksesta</p>
+        <p class="tile-note" id="typical-area-note">Otoksen mediaani</p>
       </article>
       <article class="tile">
         <h3>Tyypillinen kerrosluku</h3>
         <p class="tile-value" id="typical-storeys">–</p>
-        <p class="tile-note" id="typical-storeys-note">Mediaani otoksesta</p>
+        <p class="tile-note" id="typical-storeys-note">Otoksen mediaani</p>
       </article>
     </section>
 
@@ -72,9 +72,10 @@
       <div class="sub-chart">
         <h3 class="sub-title">Muutos edellisvuoteen</h3>
         <p class="section-note">
-          Sininen ylös = kasvua, punainen alas = laskua, nollaviiva = ei muutosta. Muutos
-          lasketaan tarkoista lupamääristä. Kuluvalta vuodelta muutosta ei näytetä, koska
-          kesken olevan vuoden vertaaminen kokonaiseen näyttäisi romahdukselta.
+          Ylöspäin osoittava sininen palkki tarkoittaa kasvua ja alaspäin osoittava punainen
+          laskua; nollaviivalla muutosta ei ole. Muutos lasketaan tarkoista lupamääristä.
+          Kuluvalta vuodelta muutosta ei näytetä, koska keskeneräisen vuoden vertaaminen
+          kokonaiseen näyttäisi jyrkältä laskulta.
         </p>
         <div id="chart-yoy" class="chart"></div>
       </div>
@@ -90,9 +91,9 @@
         <h2 id="median-area-heading" class="section-title">Tyypillinen kerrosala vuosittain</h2>
         <p class="section-note">
           Mediaanikerrosala kunkin vuoden otoksesta. Pystyakseli ei ala nollasta, koska
-          mediaanit liikkuvat kapealla välillä — nollasta alkava akseli litistäisi koko
-          jakson suoraksi viivaksi. Katkos viivassa tarkoittaa, ettei siltä vuodelta
-          osunut otokseen yhtään kerrosalatietoa.
+          mediaanit vaihtelevat kapealla välillä: nollasta alkava akseli litistäisi koko
+          jakson lähes suoraksi viivaksi. Katkos viivassa tarkoittaa, ettei kyseiseltä
+          vuodelta osunut otokseen yhtään kerrosalatietoa.
         </p>
       </div>
       <div id="chart-median-area" class="chart"></div>
@@ -121,7 +122,7 @@
     <section class="card" aria-labelledby="muni-count-heading">
       <div class="card-head">
         <h2 id="muni-count-heading" class="section-title">Kunnat lupamäärän mukaan</h2>
-        <p class="section-note">Vertailu 34 suurimman kunnan kesken, ei koko maan järjestys.</p>
+        <p class="section-note">Vertailussa on mukana 34 suurinta kuntaa, joten järjestys ei kata koko maata.</p>
       </div>
       <div id="chart-muni-count" class="chart"></div>
       <details class="table-view">
@@ -133,7 +134,7 @@
     <section class="card" aria-labelledby="muni-area-heading">
       <div class="card-head">
         <h2 id="muni-area-heading" class="section-title">Kunnat kokonaiskerrosalan mukaan</h2>
-        <p class="section-note" id="muni-area-note">Lasketaan haun yhteydessä.</p>
+        <p class="section-note" id="muni-area-note">Lasketaan haun aikana.</p>
       </div>
       <div id="chart-muni-area" class="chart"></div>
       <details class="table-view">
@@ -146,14 +147,14 @@
   <section class="card methodology" aria-labelledby="method-heading">
     <h2 id="method-heading" class="section-title">Menetelmä ja rajoitukset</h2>
     <ul>
-      <li><strong>Lupien määrät ovat tarkkoja.</strong> Ne tulevat rajapinnan osumalaskurista, eivät otoksesta.</li>
-      <li><strong>Kuntien kokonaiskerrosalat ovat tarkkoja summia.</strong> Yhden vuoden rajauksella jokaisen luvan kerrosala haetaan ja lasketaan yhteen. Vain rajauksella ”Kaikki vuodet” käytetään otosta, ja se kerrotaan rivillä.</li>
+      <li><strong>Lupien määrät ovat tarkkoja.</strong> Ne tulevat rajapinnan palauttamasta osumamäärästä, eivät otoksesta.</li>
+      <li><strong>Kuntien kokonaiskerrosalat ovat tarkkoja summia.</strong> Yhden vuoden rajauksella jokaisen luvan kerrosala haetaan ja lasketaan yhteen. Vain rajauksella ”Kaikki vuodet” käytetään otosta, ja siitä mainitaan rivillä.</li>
       <li><strong>Tyypillinen kerrosala ja kerrosluku ovat otospohjaisia.</strong> Kustakin rajauksesta poimitaan enintään 30 lupaa, ja niistä lasketaan mediaani.</li>
       <li><strong>Tyypillistä kokoa kuvaa mediaani.</strong> Kerrosala-aineisto on voimakkaasti oikealle vino, joten mediaani kuvaa tyypillistä kokoa paremmin kuin keskiarvo. Summaa arvioitaessa oikea tunnusluku on sen sijaan keskiarvo × lupien määrä.</li>
-      <li><strong>Käytössä on <code>gross_floor_area</code>, ei <code>floor_area</code>.</strong> Jälkimmäinen on täytetty vain noin prosentissa useimpien käyttötarkoitusten luvista.</li>
+      <li><strong>Käytössä on <code>gross_floor_area</code>, ei <code>floor_area</code>.</strong> Jälkimmäinen on useimmissa käyttötarkoituksissa täytetty vain noin prosentissa luvista.</li>
       <li><strong>Kuntavertailu kattaa 34 kuntaa.</strong> Kaikkien 309 kunnan läpikäynti vaatisi satoja lisäkutsuja jokaisella latauksella.</li>
-      <li><strong>Vuosimuutos on tarkka, mediaanikerrosalan kehitys ei.</strong> Muutosprosentit lasketaan rajapinnan osumalaskurin tarkoista luvuista. Vuosittainen mediaanikerrosala sen sijaan tulee kunkin vuoden enintään 30 luvan otoksesta, joten se kuvaa suuntaa eikä tarkkaa tasoa.</li>
-      <li><strong>Osuudet lasketaan luokitelluista luvista.</strong> Seitsemän käyttötarkoitusta kattaa ne luvat, joissa pääkäyttötarkoitus on ilmoitettu. Ilman käyttötarkoitusta olevat luvat jäävät jakauman ulkopuolelle, ja niiden määrä kerrotaan käyttötarkoituskortissa.</li>
+      <li><strong>Vuosimuutos on tarkka, mediaanikerrosalan kehitys ei.</strong> Muutosprosentit lasketaan rajapinnan palauttamista tarkoista osumamääristä. Vuosittainen mediaanikerrosala sen sijaan tulee kunkin vuoden enintään 30 luvan otoksesta, joten se kuvaa suuntaa eikä tarkkaa tasoa.</li>
+      <li><strong>Osuudet lasketaan luokitelluista luvista.</strong> Jakauma kattaa vain ne luvat, joille pääkäyttötarkoitus on ilmoitettu, ja ne jakautuvat seitsemään luokkaan. Ilman käyttötarkoitusta jääneet luvat eivät ole mukana jakaumassa, ja niiden määrä mainitaan käyttötarkoituskortissa.</li>
       <li><strong>Käyttötarkoituksen väri on kiinteä.</strong> Väri seuraa käyttötarkoitusta eikä sen sijoitusta, joten sama rakennustyyppi on samanvärinen rajauksesta toiseen. Värit on valittu niin, että vierekkäiset sektorit erottuvat toisistaan myös yleisimmillä värinäön poikkeamilla — väri ei silti ole ainoa tunniste, vaan jokainen sektori on nimetty selitteessä ja taulukossa.</li>
     </ul>
     <p class="source-note">

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ryhti">
+  <rect width="64" height="64" rx="14" fill="#2a78d6"/>
+  <!-- Three rising bars: the permit counts the app is built around. -->
+  <rect x="15" y="34" width="10" height="16" rx="2" fill="#ffffff"/>
+  <rect x="27" y="25" width="10" height="25" rx="2" fill="#ffffff" opacity="0.85"/>
+  <rect x="39" y="16" width="10" height="34" rx="2" fill="#ffffff" opacity="0.7"/>
+</svg>

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ryhti – Suomen rakentamisluvat</title>
+<meta name="description" content="Ryhti näyttää Suomen avoimen rakentamislupa-aineiston selkeästi selattavassa muodossa. Tuki ja tietosuojakäytäntö.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="page-header">
+  <div class="wrap">
+    <h1>Ryhti</h1>
+    <p class="lede">
+      Ryhti näyttää Suomen avoimen rakentamislupa-aineiston selkeästi selattavassa
+      muodossa. Sovellus hakee luvat suoraan viranomaisen avoimesta rajapinnasta,
+      eikä sen käyttöön tarvita tiliä.
+    </p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card" aria-labelledby="features-heading">
+    <h2 id="features-heading">Mitä sovelluksella voi tehdä</h2>
+    <ul class="feature-list">
+      <li><strong>Selaa lupia listana</strong> ja avaa yksittäisen luvan tiedot.</li>
+      <li><strong>Rajaa hakua</strong> kunnan, vuoden, käyttötarkoituksen ja muiden tietojen mukaan.</li>
+      <li><strong>Katso luvat kartalla</strong> siellä, missä ne sijaitsevat.</li>
+      <li><strong>Tutki tilastoja</strong> siitä, mitä ja minne on haettu lupaa rakentaa.</li>
+    </ul>
+  </section>
+
+  <section class="card" aria-labelledby="data-heading">
+    <h2 id="data-heading">Tietolähde ja lisenssi</h2>
+    <p>
+      Rakentamislupatiedot ovat peräisin Suomen ympäristökeskukselta (SYKE) ja ne
+      haetaan sen
+      <a href="https://www.syke.fi/fi/ymparistotieto/avoimet-rajapinnat/paikkatietorajapinnat" rel="noreferrer noopener" target="_blank">avoimista paikkatietorajapinnoista</a>.
+      Aineisto on käytössä
+      <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="noreferrer noopener" target="_blank">CC BY 4.0</a>
+      -lisenssillä.
+    </p>
+    <p>
+      Ryhti ei muokkaa lähdeaineistoa. Jos jokin lupa näyttää sovelluksessa
+      puutteelliselta, tieto puuttuu tai on virheellinen myös rajapinnassa.
+    </p>
+  </section>
+
+  <section class="card" id="tuki" aria-labelledby="support-heading">
+    <h2 id="support-heading">Tuki</h2>
+    <p>
+      Jos sovelluksessa on ongelma tai haluat kysyä siitä jotain,
+      <a href="https://github.com/cetepek/ryhti-info/issues" rel="noreferrer noopener" target="_blank">avaa issue tähän repositorioon</a>.
+      Vastaan niihin itse.
+    </p>
+    <div class="translation" id="support" lang="en">
+      <h2>Support</h2>
+      <p>
+        If you run into a problem with the app or have a question about it, please
+        <a href="https://github.com/cetepek/ryhti-info/issues" rel="noreferrer noopener" target="_blank">open an issue on this repository</a>.
+        I answer them myself.
+      </p>
+    </div>
+  </section>
+
+  <section class="card" id="tietosuoja" aria-labelledby="privacy-heading">
+    <h2 id="privacy-heading">Tietosuojakäytäntö</h2>
+    <p>
+      Ryhti ei kerää, tallenna eikä jaa mitään käyttäjätietoja. Sovelluksessa ei ole
+      käyttäjätilejä, kirjautumista, analytiikkaa eikä seurantaa.
+    </p>
+    <p>
+      Sovellus hakee ainoastaan julkista rakentamislupadataa Suomen ympäristökeskuksen
+      rajapinnasta näyttääkseen sen sinulle. Kyselyt kohdistuvat suoraan tuohon
+      rajapintaan, eikä niiden välissä ole Ryhtiin liittyvää palvelinta.
+    </p>
+    <p>
+      Tietosuojaa koskevat kysymykset voi esittää
+      <a href="https://github.com/cetepek/ryhti-info/issues" rel="noreferrer noopener" target="_blank">avaamalla issuen tähän repositorioon</a>.
+    </p>
+    <div class="translation" id="privacy" lang="en">
+      <h2>Privacy Policy</h2>
+      <p>
+        Ryhti does not collect, store, or share any user data. The app has no accounts,
+        no sign-in, no analytics, and no tracking.
+      </p>
+      <p>
+        It only fetches public building-permit data from the Finnish Environment
+        Institute (SYKE) open API in order to display it to you. Those requests go
+        directly to that API; there is no Ryhti-operated server in between.
+      </p>
+      <p>
+        Privacy-related questions can be raised by
+        <a href="https://github.com/cetepek/ryhti-info/issues" rel="noreferrer noopener" target="_blank">opening an issue on this repository</a>.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>
+      Lähde: Suomen ympäristökeskus (SYKE), rakentamislupa-aineisto, lisensoitu
+      <a href="https://creativecommons.org/licenses/by/4.0/deed.fi" rel="noreferrer noopener" target="_blank">CC BY 4.0</a>
+      -lisenssillä. Sivun lähdekoodi on
+      <a href="https://github.com/cetepek/ryhti-info" rel="noreferrer noopener" target="_blank">GitHubissa</a>.
+    </p>
+  </div>
+</footer>
+</body>
+</html>
