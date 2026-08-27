@@ -21,8 +21,8 @@
 import { fetchCount, fetchSample } from "./api.js";
 import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js";
 import { runLimited } from "./batcher.js";
-import { buildCQLFilter, yearRange } from "./cql.js";
-import { BUILDING_PURPOSES } from "./codelists.js";
+import { buildCQLFilter, yearRange, monthRange } from "./cql.js";
+import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js";
 import { municipalityName } from "./municipalities.js";
 
 /** How many permits each bucket samples for its median size/storey figures. */
@@ -105,6 +105,18 @@ export async function loadStatistics(state, options = {}) {
     operations.push(async () => {
       const filter = buildCQLFilter({ ...state, purposes: [purpose.code] });
       return { kind: "purpose", purpose, count: await fetchCount(filter, signal) };
+    });
+  }
+
+  // Every code is queried, including the five that are empty in this collection
+  // today (demolition, townscape and landscape actions do not appear in a
+  // BUILDING permit feed). Rendering drops the zero rows, so if the upstream
+  // feed ever starts carrying them the card picks them up on its own rather
+  // than silently hiding a category behind a hard-coded list of four.
+  for (const actionType of CONSTRUCTION_ACTION_TYPES) {
+    operations.push(async () => {
+      const filter = buildCQLFilter({ ...state, actionTypes: [actionType.code] });
+      return { kind: "actionType", actionType, count: await fetchCount(filter, signal) };
     });
   }
 
@@ -254,6 +266,15 @@ function assemble(results, state, years, plan) {
     .map((r) => ({ code: r.purpose.code, name: r.purpose.name, shortName: r.purpose.shortName, count: r.count }))
     .sort((a, b) => b.count - a.count);
 
+  // Unlike the purposes, these partition the scope exactly: every permit in this
+  // collection carries a construction_action_type, so the counts sum to the
+  // headline total and the shares are shares of the whole, not of a classified
+  // subset.
+  const actionTypeBreakdown = rows
+    .filter((r) => r.kind === "actionType")
+    .map((r) => ({ code: r.actionType.code, name: r.actionType.name, count: r.count }))
+    .sort((a, b) => b.count - a.count);
+
   const yearBuckets = rows
     .filter((r) => r.kind === "year")
     .sort((a, b) => a.year - b.year)
@@ -300,6 +321,7 @@ function assemble(results, state, years, plan) {
     typicalStoreysSampleSize: pooledStoreys.length,
     yearBuckets,
     purposeBreakdown,
+    actionTypeBreakdown,
     municipalityFiguresAreExact: sweepComplete,
     municipalityDataIncomplete: plan.mode === "sweep" && !sweepComplete,
     topMunicipalitiesByCount: [...municipalities].sort((a, b) => b.count - a.count).slice(0, 10),
@@ -309,6 +331,76 @@ function assemble(results, state, years, plan) {
       .slice(0, 10),
     selectedYear,
   };
+}
+
+/**
+ * The months of `year` that are finished, and therefore comparable.
+ *
+ * A running month is dropped outright rather than drawn short. Two thirds of an
+ * August against a whole previous August is not a decline, but that is exactly
+ * what it looks like on a bar chart — the same trap the year-over-year chart
+ * already refuses to walk into for the current year. A partial bar cannot be
+ * fixed with a caption, because the shape is read before the caption is.
+ *
+ * A past year returns all twelve; a future year returns none.
+ */
+export function comparableMonths(year, now = new Date()) {
+  const currentYear = now.getUTCFullYear();
+  if (year < currentYear) return Array.from({ length: 12 }, (_, i) => i + 1);
+  if (year > currentYear) return [];
+  // getUTCMonth() is 0-based, so it is already "the count of finished months".
+  return Array.from({ length: now.getUTCMonth() }, (_, i) => i + 1);
+}
+
+/**
+ * Month-by-month counts for `year` against the same months a year earlier.
+ *
+ * Loaded on demand rather than with the rest of the dashboard: it costs up to 24
+ * requests, which would roughly double the page's default load for a section
+ * most readers never open. The other filters still apply — this compares the
+ * same slice of the data the rest of the page is showing, one level finer.
+ *
+ * Counts are exact: they come from the API's match counter, never a sample.
+ *
+ * @param {object} state   filter state; its dateRange is replaced per month
+ * @param {number} year    the year to compare against `year - 1`
+ */
+export async function loadMonthlyComparison(state, year, options = {}) {
+  const { onProgress, signal } = options;
+  const months = comparableMonths(year);
+  if (months.length === 0) return { year, previousYear: year - 1, months: [] };
+
+  const operations = [];
+  for (const month of months) {
+    for (const subject of [year, year - 1]) {
+      operations.push(async () => {
+        const filter = buildCQLFilter({ ...state, dateRange: monthRange(subject, month) });
+        return { month, subject, count: await fetchCount(filter, signal) };
+      });
+    }
+  }
+
+  const { results, errors, failureCount } = await runLimited(operations, {
+    maxConcurrency: 8,
+    onProgress,
+    signal,
+  });
+
+  if (failureCount === operations.length) {
+    throw errors.find(Boolean) ?? new Error("Kuukausivertailun haku epäonnistui.");
+  }
+
+  // A dropped request leaves null rather than zero. Zero and "we never found
+  // out" are different readings of a bar, and only one of them is honest.
+  const byMonth = new Map(months.map((month) => ({ month, current: null, previous: null })).map((m) => [m.month, m]));
+  for (const row of results.filter(Boolean)) {
+    const entry = byMonth.get(row.month);
+    if (!entry) continue;
+    if (row.subject === year) entry.current = row.count;
+    else entry.previous = row.count;
+  }
+
+  return { year, previousYear: year - 1, months: [...byMonth.values()] };
 }
 
 /** Which calendar year, if any, a date range exactly represents. */

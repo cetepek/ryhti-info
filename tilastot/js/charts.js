@@ -228,6 +228,140 @@ function roundedTopBar(x, y, width, height, radius) {
 }
 
 /**
+ * Grouped columns: one slot per month, two bars per slot.
+ *
+ * Paired bars rather than two lines or a diverging bar, because the reader's
+ * question here is "is this month bigger or smaller than the same month last
+ * year", and adjacency at a shared baseline is what makes two magnitudes
+ * directly comparable. Seasonality means a January/July comparison is
+ * meaningless, so the months are never compared to each other — only each month
+ * to its own counterpart.
+ *
+ * The compared year is deliberately NOT a second categorical color. It is a
+ * reference, not a co-equal series, so it takes a neutral that recedes and lets
+ * the selected year stay the figure. Two saturated hues would read as two
+ * categories of permit rather than one measure at two times.
+ *
+ * @param {HTMLElement} container
+ * @param {Array<{label:string,current:number|null,previous:number|null}>} data
+ * @param {object} [options]
+ * @param {string} options.currentLabel   legend text for the selected year
+ * @param {string} options.previousLabel  legend text for the compared year
+ */
+export function renderGroupedColumnChart(container, data, options = {}) {
+  const { currentLabel = "", previousLabel = "", unit = "lupaa" } = options;
+  container.innerHTML = "";
+  if (!data || data.length === 0) {
+    container.appendChild(emptyNote("Ei vertailukelpoisia kuukausia valituilla rajauksilla."));
+    return;
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "grouped-chart";
+
+  const legend = document.createElement("ul");
+  legend.className = "chart-legend";
+  for (const [text, cls] of [[currentLabel, "swatch-current"], [previousLabel, "swatch-previous"]]) {
+    const item = document.createElement("li");
+    item.className = "legend-item";
+    const swatch = document.createElement("span");
+    swatch.className = `legend-swatch ${cls}`;
+    const label = document.createElement("span");
+    label.className = "legend-label";
+    label.textContent = text;
+    item.append(swatch, label);
+    legend.appendChild(item);
+  }
+  wrapper.appendChild(legend);
+
+  const width = Math.max(container.clientWidth || 640, 320);
+  const height = 280;
+  const pad = { top: 16, right: 8, bottom: 32, left: 68 };
+  const plotWidth = width - pad.left - pad.right;
+  const plotHeight = height - pad.top - pad.bottom;
+
+  const values = data.flatMap((d) => [d.current, d.previous]).filter((v) => Number.isFinite(v));
+  const { max: axisMax, step } = niceScale(Math.max(...values, 0));
+
+  const svg = svgEl("svg", {
+    width: "100%",
+    height,
+    viewBox: `0 0 ${width} ${height}`,
+    role: "img",
+    "aria-label": `Lupien määrä kuukausittain, ${currentLabel} verrattuna vuoteen ${previousLabel}`,
+  });
+
+  for (let value = 0; value <= axisMax + 1e-9; value += step) {
+    const y = pad.top + plotHeight - (value / axisMax) * plotHeight;
+    svg.appendChild(
+      svgEl("line", { x1: pad.left, y1: y, x2: width - pad.right, y2: y, class: value === 0 ? "axis-line" : "grid-line" })
+    );
+    const label = svgEl("text", { x: pad.left - 8, y: y + 4, class: "axis-label", "text-anchor": "end" });
+    label.textContent = formatNumber(value);
+    svg.appendChild(label);
+  }
+
+  const slot = plotWidth / data.length;
+  // 1px between the pair, 4px of air between neighbouring pairs, so the grouping
+  // is carried by spacing alone and needs no separator.
+  const groupWidth = Math.max(Math.min(slot - 4, 32), 6);
+  const barWidth = Math.max((groupWidth - 1) / 2, 2);
+  const radius = Math.min(3, barWidth / 2);
+
+  data.forEach((d, index) => {
+    const groupX = pad.left + slot * index + (slot - groupWidth) / 2;
+
+    [
+      { value: d.current, offset: 0, cls: "bar-mark" },
+      { value: d.previous, offset: barWidth + 1, cls: "bar-mark-previous" },
+    ].forEach(({ value, offset, cls }) => {
+      if (!Number.isFinite(value) || axisMax === 0) return;
+      const barHeight = (value / axisMax) * plotHeight;
+      if (barHeight <= 0) return;
+      svg.appendChild(
+        svgEl("path", {
+          d: roundedTopBar(groupX + offset, pad.top + plotHeight - barHeight, barWidth, barHeight, radius),
+          class: cls,
+        })
+      );
+    });
+
+    const monthLabel = svgEl("text", {
+      x: groupX + groupWidth / 2,
+      y: height - pad.bottom + 18,
+      class: "axis-label",
+      "text-anchor": "middle",
+    });
+    // First letter only once the slots stop fitting three ("hei" vs "h"); an
+    // overlapping label is worse than a terse one, and the table carries names.
+    monthLabel.textContent = slot < 26 ? d.label.slice(0, 1) : d.label;
+    svg.appendChild(monthLabel);
+
+    const readout = (value) => (Number.isFinite(value) ? `${formatNumber(value)} ${unit}` : "ei tietoa");
+    const hit = svgEl("rect", {
+      x: pad.left + slot * index,
+      y: pad.top,
+      width: slot,
+      height: plotHeight,
+      class: "hit-target",
+      tabindex: "0",
+      role: "img",
+      "aria-label": `${d.label}: ${currentLabel} ${readout(d.current)}, ${previousLabel} ${readout(d.previous)}`,
+    });
+    const show = () =>
+      showTooltip(hit, readout(d.current), `${d.label} ${currentLabel} · ${previousLabel}: ${readout(d.previous)}`);
+    hit.addEventListener("pointerenter", show);
+    hit.addEventListener("focus", show);
+    hit.addEventListener("pointerleave", hideTooltip);
+    hit.addEventListener("blur", hideTooltip);
+    svg.appendChild(hit);
+  });
+
+  wrapper.appendChild(svg);
+  container.appendChild(wrapper);
+}
+
+/**
  * Horizontal bar rows.
  * @param {HTMLElement} container
  * @param {Array<{label:string,value:number,valueLabel?:string,shareLabel?:string,note?:string}>} rows
