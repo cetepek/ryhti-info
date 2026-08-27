@@ -10,6 +10,12 @@
 <body>
 <header class="page-header">
   <div class="wrap">
+    <!-- Relative, not "/": the site is served from the domain root under the
+         custom domain, but from a subpath on github.io, and "../" is correct in
+         both. -->
+    <nav class="site-nav" aria-label="Sivusto">
+      <a href="../">← Ryhti</a>
+    </nav>
     <h1>Rakentamislupatilastot</h1>
     <p class="lede">
       Tilastoja Suomen avoimesta rakentamislupa-aineistosta. Luvut haetaan suoraan
