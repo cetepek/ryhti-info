@@ -89,3 +89,17 @@ export function yearRange(year) {
     end: new Date(Date.UTC(year, 11, 31)),
   };
 }
+
+/**
+ * Inclusive UTC calendar-month range. `month` is 1-based.
+ *
+ * The end day comes from `Date.UTC(year, month, 0)` — day zero of the FOLLOWING
+ * month, which the Date constructor normalises to the last day of this one. That
+ * gets February and leap years right without a length table.
+ */
+export function monthRange(year, month) {
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1)),
+    end: new Date(Date.UTC(year, month, 0)),
+  };
+}

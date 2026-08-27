@@ -86,6 +86,27 @@
       </details>
     </section>
 
+    <section class="card" aria-labelledby="month-heading">
+      <div class="card-head">
+        <h2 id="month-heading" class="section-title">Kuukausivertailu</h2>
+        <p class="section-note" id="month-note">
+          Kunkin kuukauden lupamäärä verrattuna saman kuukauden lupamäärään vuotta
+          aiemmin. Kesken oleva kuukausi jätetään pois, koska vajaa kuukausi
+          kokonaisen rinnalla näyttäisi laskulta, vaikkei olisi.
+        </p>
+      </div>
+      <!-- Outside the disclosure on purpose: it carries the "pick a single year"
+           explanation, which is needed precisely when the section is collapsed. -->
+      <div id="month-status" class="lazy-status" role="status" aria-live="polite" hidden></div>
+      <details class="lazy-section" id="month-details">
+        <summary>Näytä kuukausivertailu</summary>
+        <div class="lazy-body">
+          <div id="chart-months" class="chart"></div>
+          <div id="table-months"></div>
+        </div>
+      </details>
+    </section>
+
     <section class="card" aria-labelledby="median-area-heading">
       <div class="card-head">
         <h2 id="median-area-heading" class="section-title">Tyypillinen kerrosala vuosittain</h2>
@@ -116,6 +137,22 @@
       <details class="table-view">
         <summary>Näytä taulukkona</summary>
         <div id="table-purposes"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="action-heading">
+      <div class="card-head">
+        <h2 id="action-heading" class="section-title">Rakentamistoimenpiteet</h2>
+        <p class="section-note">
+          Lupien määrä toimenpiteen mukaan: onko kyse uudisrakentamisesta,
+          laajennuksesta vai muutostyöstä. Osuudet ovat osuuksia kaikista
+          rajaukseen osuvista luvista.
+        </p>
+      </div>
+      <div id="chart-action-types" class="chart"></div>
+      <details class="table-view">
+        <summary>Näytä taulukkona</summary>
+        <div id="table-action-types"></div>
       </details>
     </section>
 
@@ -152,6 +189,8 @@
       <li><strong>Tyypillinen kerrosala ja kerrosluku ovat otospohjaisia.</strong> Kustakin rajauksesta poimitaan enintään 30 lupaa, ja niistä lasketaan mediaani.</li>
       <li><strong>Tyypillistä kokoa kuvaa mediaani.</strong> Kerrosala-aineisto on voimakkaasti oikealle vino, joten mediaani kuvaa tyypillistä kokoa paremmin kuin keskiarvo. Summaa arvioitaessa oikea tunnusluku on sen sijaan keskiarvo × lupien määrä.</li>
       <li><strong>Käytössä on <code>gross_floor_area</code>, ei <code>floor_area</code>.</strong> Jälkimmäinen on useimmissa käyttötarkoituksissa täytetty vain noin prosentissa luvista.</li>
+      <li><strong>Rakentamistoimenpiteet ovat tarkkoja ja kattavia.</strong> Jokaisella tämän aineiston luvalla on toimenpidetyyppi, joten luvut summautuvat rajauksen kokonaismäärään eikä luokittelematonta jäännöstä jää. Koodisto sisältää myös purkamisen ja maisematoimenpiteet, mutta rakentamislupa-aineistossa niitä ei esiinny, joten ne jäävät kortista pois.</li>
+      <li><strong>Kuukausivertailu ladataan erikseen.</strong> Se maksaa enimmillään 24 kyselyä, joten se haetaan vasta kun osio avataan. Luvut ovat tarkkoja osumamääriä, ja muut rajaukset ovat voimassa myös siinä.</li>
       <li><strong>Kuntavertailu kattaa 34 kuntaa.</strong> Kaikkien 309 kunnan läpikäynti vaatisi satoja lisäkutsuja jokaisella latauksella.</li>
       <li><strong>Vuosimuutos on tarkka, mediaanikerrosalan kehitys ei.</strong> Muutosprosentit lasketaan rajapinnan palauttamista tarkoista osumamääristä. Vuosittainen mediaanikerrosala sen sijaan tulee kunkin vuoden enintään 30 luvan otoksesta, joten se kuvaa suuntaa eikä tarkkaa tasoa.</li>
       <li><strong>Osuudet lasketaan luokitelluista luvista.</strong> Jakauma kattaa vain ne luvat, joille pääkäyttötarkoitus on ilmoitettu, ja ne jakautuvat seitsemään luokkaan. Ilman käyttötarkoitusta jääneet luvat eivät ole mukana jakaumassa, ja niiden määrä mainitaan käyttötarkoituskortissa.</li>

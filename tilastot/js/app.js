@@ -1,4 +1,9 @@
-import { loadStatistics, selectableYears, roundToTwoSignificantFigures } from "./stats.js";
+import {
+  loadStatistics,
+  loadMonthlyComparison,
+  selectableYears,
+  roundToTwoSignificantFigures,
+} from "./stats.js";
 import {
   renderColumnChart,
   renderBarRows,
@@ -6,6 +11,7 @@ import {
   renderDonutChart,
   renderLineChart,
   renderDivergingColumnChart,
+  renderGroupedColumnChart,
   formatNumber,
   formatPercentDelta,
 } from "./charts.js";
@@ -37,6 +43,13 @@ const ui = {
   chartPurposeSplit: el("chart-purpose-split"),
   purposeNote: el("purpose-note"),
   chartPurposes: el("chart-purposes"),
+  chartActionTypes: el("chart-action-types"),
+  tableActionTypes: el("table-action-types"),
+  monthDetails: el("month-details"),
+  monthStatus: el("month-status"),
+  monthNote: el("month-note"),
+  chartMonths: el("chart-months"),
+  tableMonths: el("table-months"),
   chartMuniCount: el("chart-muni-count"),
   chartMuniArea: el("chart-muni-area"),
   muniAreaNote: el("muni-area-note"),
@@ -51,6 +64,34 @@ const ui = {
 let lastResult = null;
 /** Aborts an in-flight load when the filters change again before it finishes. */
 let inFlight = null;
+/**
+ * Which filter state the rendered month comparison belongs to, and its own
+ * in-flight request. The section is loaded on demand, so it can be showing a
+ * slice the rest of the page has already moved on from — this is what tells
+ * those two apart, rather than assuming they are in step.
+ */
+let monthKey = null;
+let monthInFlight = null;
+/** The rendered comparison, kept so a resize can re-lay-out its SVG. */
+let lastMonths = null;
+const MONTH_NAMES = [
+  "tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu",
+  "heinäkuu", "elokuu", "syyskuu", "lokakuu", "marraskuu", "joulukuu",
+];
+/** Axis labels: the chart has twelve slots and no room for full month names. */
+const MONTH_NAMES_SHORT = [
+  "tammi", "helmi", "maalis", "huhti", "touko", "kesä",
+  "heinä", "elo", "syys", "loka", "marras", "joulu",
+];
+
+/** Identifies a filter slice, so a cached month render can be matched to it. */
+function stateKey(state) {
+  return JSON.stringify({
+    year: state.dateRange ? state.dateRange.start.getUTCFullYear() : null,
+    municipalities: state.municipalities,
+    purposes: state.purposes,
+  });
+}
 
 function populateFilters() {
   const years = selectableYears();
@@ -128,6 +169,7 @@ async function refresh() {
     if (controller.signal.aborted) return;
     lastResult = result;
     render(result, state);
+    refreshMonthSection(state);
   } catch (error) {
     if (error?.name === "AbortError" || controller.signal.aborted) return;
     showError(error);
@@ -303,6 +345,26 @@ function render(result, state) {
   );
   renderPurposeNote(result.totalCount, classifiedTotal);
 
+  // Shares here are shares of the headline total, not of a classified subset:
+  // every permit in this collection carries an action type, so there is no
+  // unclassified remainder to exclude. Zero rows are dropped — five of the nine
+  // codes describe demolition and landscape work that a building-permit feed
+  // never contains, and empty rows would imply the filter excluded them.
+  const actionTypes = result.actionTypeBreakdown.filter((a) => a.count > 0);
+  renderBarRows(
+    ui.chartActionTypes,
+    actionTypes.map((a) => ({
+      label: a.name,
+      value: a.count,
+      shareLabel: shareLabel(a.count, result.totalCount),
+    }))
+  );
+  renderTable(
+    ui.tableActionTypes,
+    ["Toimenpide", "Lupia", "Osuus"],
+    actionTypes.map((a) => [a.name, formatNumber(a.count), shareLabel(a.count, result.totalCount)])
+  );
+
   renderBarRows(
     ui.chartMuniCount,
     result.topMunicipalitiesByCount.map((m) => ({ label: m.name, value: m.count }))
@@ -362,6 +424,121 @@ function render(result, state) {
       "kumpaan suuntaan tahansa.";
 }
 
+/**
+ * Keeps the month section in step with the filters.
+ *
+ * The rendered comparison is invalidated on every load, but it is only re-fetched
+ * when the section is actually open — that is the whole point of loading it on
+ * demand. A closed section costs nothing until someone opens it.
+ */
+function refreshMonthSection(state) {
+  monthInFlight?.abort();
+  monthInFlight = null;
+  monthKey = null;
+  lastMonths = null;
+
+  if (!ui.monthDetails) return;
+
+  // "Kaikki vuodet" has no year to compare against, so the section has nothing
+  // to say. It is disabled rather than hidden, so it does not disappear from
+  // under a reader who had it open.
+  const year = state.dateRange ? state.dateRange.start.getUTCFullYear() : null;
+  const unavailable = year === null;
+  ui.monthDetails.classList.toggle("is-unavailable", unavailable);
+  if (unavailable) {
+    ui.monthDetails.open = false;
+    setMonthStatus("Valitse yksittäinen vuosi nähdäksesi kuukausivertailun.");
+    ui.chartMonths.innerHTML = "";
+    ui.tableMonths.innerHTML = "";
+    return;
+  }
+
+  setMonthStatus(null);
+  if (ui.monthDetails.open) loadMonths(state);
+}
+
+function setMonthStatus(text) {
+  if (!ui.monthStatus) return;
+  ui.monthStatus.hidden = text === null;
+  ui.monthStatus.textContent = text ?? "";
+}
+
+async function loadMonths(state) {
+  const key = stateKey(state);
+  if (monthKey === key) return;
+
+  const year = state.dateRange.start.getUTCFullYear();
+  monthInFlight?.abort();
+  const controller = new AbortController();
+  monthInFlight = controller;
+
+  setMonthStatus("Haetaan…");
+  try {
+    const result = await loadMonthlyComparison(state, year, {
+      signal: controller.signal,
+      onProgress: (done, total) => {
+        if (controller.signal.aborted) return;
+        setMonthStatus(`${done} / ${total}`);
+      },
+    });
+    if (controller.signal.aborted) return;
+    monthKey = key;
+    renderMonths(result);
+  } catch (error) {
+    if (error?.name === "AbortError" || controller.signal.aborted) return;
+    setMonthStatus(error?.message ?? "Kuukausivertailun haku epäonnistui.");
+  } finally {
+    if (monthInFlight === controller) monthInFlight = null;
+  }
+}
+
+function renderMonths(result) {
+  lastMonths = result;
+  const { year, previousYear, months } = result;
+
+  if (months.length === 0) {
+    setMonthStatus(
+      `Vuodelta ${year} ei ole vielä yhtään päättynyttä kuukautta, joten vertailtavaa ei ole.`
+    );
+    ui.chartMonths.innerHTML = "";
+    ui.tableMonths.innerHTML = "";
+    return;
+  }
+
+  setMonthStatus(null);
+  renderGroupedColumnChart(
+    ui.chartMonths,
+    months.map((m) => ({
+      label: MONTH_NAMES_SHORT[m.month - 1],
+      current: m.current,
+      previous: m.previous,
+    })),
+    { currentLabel: String(year), previousLabel: String(previousYear) }
+  );
+
+  renderTable(
+    ui.tableMonths,
+    ["Kuukausi", String(year), String(previousYear), "Muutos"],
+    months.map((m) => [
+      MONTH_NAMES[m.month - 1],
+      formatNumber(m.current),
+      formatNumber(m.previous),
+      monthDeltaLabel(m.current, m.previous),
+    ])
+  );
+}
+
+/**
+ * Percent change for one month, or a dash where it cannot be computed.
+ *
+ * A zero previous month has no percentage — growth from nothing is not 100 %,
+ * it is undefined — so it prints as a dash rather than an invented figure.
+ */
+function monthDeltaLabel(current, previous) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return "–";
+  return formatPercentDelta((current - previous) / previous);
+}
+
 function renderYearTable(buckets, deltas) {
   renderTable(
     ui.tableYears,
@@ -407,11 +584,29 @@ window.addEventListener("resize", () => {
       ui.chartMedianArea,
       lastResult.yearBuckets.map((b) => ({ year: b.year, value: b.medianGrossFloorArea }))
     );
+    if (lastMonths) renderMonths(lastMonths);
   }, 150);
 });
 
 populateFilters();
 ui.reload.addEventListener("click", refresh);
+// Opening the section is what pays for it. Closing it does not discard what was
+// already fetched, so re-opening the same slice is free.
+ui.monthDetails?.addEventListener("toggle", () => {
+  if (!ui.monthDetails.open) return;
+  // Read the controls, not the last rendered state. Opening the section while a
+  // dashboard load is still in flight is normal — the filters already say which
+  // slice the reader wants, and waiting for the render would close the section
+  // under them for no reason.
+  const state = currentState();
+  // pointer-events cannot stop a keyboard activation, so the guard lives here
+  // too rather than only in CSS.
+  if (!state.dateRange) {
+    ui.monthDetails.open = false;
+    return;
+  }
+  loadMonths(state);
+});
 for (const control of [ui.year, ui.municipality, ui.purpose]) {
   control.addEventListener("change", refresh);
 }
