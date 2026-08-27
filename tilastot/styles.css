@@ -113,20 +113,16 @@ body {
 .wrap { max-width: 940px; margin: 0 auto; padding: 0 20px; }
 
 .page-header { padding: 40px 0 8px; }
-/* The only way back to the rest of the site from here. Recessive — it is
-   orientation, not a call to action. */
-.site-nav { margin-bottom: 10px; }
-.site-nav a {
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-size: 0.85rem;
-  border-radius: 4px;
-}
-.site-nav a:hover { color: var(--text-primary); text-decoration: underline; }
-.site-nav a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .page-header h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -0.02em; }
 .lede { margin: 0; color: var(--text-secondary); max-width: 62ch; }
 .lede a { color: inherit; }
+
+/* Named in full here ("Lataa Ryhti App Storesta"), because this page can be
+   reached directly and its heading says "Rakentamislupatilastot", not "Ryhti" —
+   a bare "Lataa App Storesta" would not say what is being downloaded. */
+.app-link { margin: 12px 0 0; font-size: 0.92rem; }
+.app-link a { color: var(--series-blue); font-weight: 600; text-decoration: none; }
+.app-link a:hover { text-decoration: underline; }
 
 /* ---- Filters: one row above the charts ---- */
 /* Sticky: the page is long, every figure below is scoped by these three

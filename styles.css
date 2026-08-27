@@ -73,6 +73,22 @@ a:focus-visible, summary:focus-visible {
 
 main { padding-bottom: 8px; }
 
+/* The one action this page exists to offer, so it is a filled control rather
+   than one more blue link on a page already full of them. Deliberately not
+   target="_blank": this is a hand-off to the App Store, and staying in the same
+   tab keeps the back button working the way people expect. */
+.app-cta { margin: 22px 0 0; }
+.app-cta a {
+  display: inline-block;
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+}
+.app-cta a:hover { filter: brightness(1.08); }
+
 .card {
   background: var(--surface-1);
   border: 1px solid var(--border);
