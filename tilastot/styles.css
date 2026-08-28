@@ -117,6 +117,38 @@ body {
 .lede { margin: 0; color: var(--text-secondary); max-width: 62ch; }
 .lede a { color: inherit; }
 
+/* The app link. Secondary to the data on this page, so it is smaller than the
+   landing page's primary call to action — but the same neutral pill, because a
+   reader who arrives here directly has no other route to the app and should
+   recognise it as the same affordance. The neutral pair inverts per theme and
+   measures ~18.7:1 light / ~19.4:1 dark, well clear of AA. */
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 16px 0 0;
+}
+.app-store-button {
+  display: inline-block;
+  background: var(--text-primary);
+  color: var(--page-plane);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 9px;
+}
+.app-store-button:hover { opacity: 0.88; }
+.app-store-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+/* --text-secondary, not --text-muted: muted measures 3.41:1 on the page plane
+   in light mode, under the 4.5:1 AA wants for text this size. Secondary gives
+   7.53:1 / 10.85:1. */
+.cta-meta { color: var(--text-secondary); font-size: 0.82rem; }
+
 /* ---- Filters: one row above the charts ---- */
 /* Sticky: the page is long, every figure below is scoped by these three
    controls, and losing them on scroll means scrolling back up to re-read what

@@ -93,9 +93,12 @@ a:focus-visible, summary:focus-visible {
   border-radius: 10px;
 }
 .app-store-button:hover { opacity: 0.88; }
+/* --text-secondary, not --text-muted: muted measures 3.41:1 on the page plane
+   in light mode, under the 4.5:1 AA wants for text this size. Secondary gives
+   7.53:1 / 10.85:1. */
 .cta-meta {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.85rem;
 }
 
