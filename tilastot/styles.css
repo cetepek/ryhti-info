@@ -551,6 +551,13 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
 /* Inline year picker inside a card head. Borrows the filter row's select
    styling but sits on one line with its label, because it scopes one card
    rather than the page. */
+.inline-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 12px 0 0;
+}
+.inline-fields .inline-field { margin: 0; }
 .inline-field {
   display: flex;
   flex-wrap: wrap;
@@ -573,13 +580,7 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
 .lazy-body { margin-top: 16px; }
 .lazy-status { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 12px; }
 .lazy-status[hidden] { display: none; }
-/* Nothing to compare against under "Kaikki vuodet". The control is dimmed and
-   inert rather than removed, so it does not vanish from under a reader, and the
-   status line above says why. */
-.lazy-section.is-unavailable > summary {
-  opacity: 0.45;
-  pointer-events: none;
-}
+
 
 @media (prefers-reduced-motion: reduce) {
   .lazy-section > summary::before { transition: none; }

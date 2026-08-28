@@ -96,14 +96,22 @@
       <div class="card-head">
         <h2 id="month-heading" class="section-title">Kuukausivertailu</h2>
         <p class="section-note" id="month-note">
-          Kunkin kuukauden lupamäärä verrattuna saman kuukauden lupamäärään vuotta
-          aiemmin. Kesken oleva kuukausi jätetään pois, koska vajaa kuukausi
-          kokonaisen rinnalla näyttäisi laskulta, vaikkei olisi.
+          Kahden vuoden lupamäärät kuukausi kuukaudelta rinnakkain. Kortti käyttää
+          omia vuosivalintojaan eikä seuraa Vuosi-rajausta; kunta- ja
+          käyttötarkoitusrajaukset ovat voimassa. Kesken oleva kuukausi jätetään
+          pois, koska vajaa kuukausi kokonaisen rinnalla näyttäisi laskulta,
+          vaikkei olisi.
         </p>
-        <p class="inline-field">
-          <label for="compare-year">Verrattuna vuoteen</label>
-          <select id="compare-year"></select>
-        </p>
+        <div class="inline-fields">
+          <p class="inline-field">
+            <label for="month-year-a">Vuosi</label>
+            <select id="month-year-a"></select>
+          </p>
+          <p class="inline-field">
+            <label for="month-year-b">Verrattuna vuoteen</label>
+            <select id="month-year-b"></select>
+          </p>
+        </div>
       </div>
       <!-- Outside the disclosure on purpose: it carries the "pick a single year"
            explanation, which is needed precisely when the section is collapsed. -->
@@ -236,6 +244,13 @@
   </section>
 </main>
 
-<script type="module" src="js/app.js"></script>
+<!-- The ?v= token is the cache key for the WHOLE module graph, and every
+     import specifier in js/ carries the same one. GitHub Pages serves both
+     the HTML and the modules with max-age=600 and no per-deploy URL change,
+     so without this a returning visitor gets new HTML against a cached old
+     app.js: the new markup renders with nothing wired to it. Bump on any
+     deploy that changes js/ — all specifiers must match. Verify with:
+       grep -ro "?v=[0-9a-z-]*" tilastot | sort -u   (expect one line)  -->
+<script type="module" src="js/app.js?v=2026-08-28a"></script>
 </body>
 </html>

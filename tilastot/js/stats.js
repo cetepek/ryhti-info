@@ -18,12 +18,12 @@
 //  * Sample sizes travel with every sample-derived number so a thin sample is
 //    visible rather than hidden behind a confident-looking figure.
 
-import { fetchCount, fetchSample } from "./api.js";
-import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js";
-import { runLimited } from "./batcher.js";
-import { buildCQLFilter, yearRange, monthRange } from "./cql.js";
-import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js";
-import { municipalityName } from "./municipalities.js";
+import { fetchCount, fetchSample } from "./api.js?v=2026-08-28a";
+import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js?v=2026-08-28a";
+import { runLimited } from "./batcher.js?v=2026-08-28a";
+import { buildCQLFilter, yearRange, monthRange } from "./cql.js?v=2026-08-28a";
+import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js?v=2026-08-28a";
+import { municipalityName } from "./municipalities.js?v=2026-08-28a";
 
 /** How many permits each bucket samples for its median size/storey figures. */
 const SAMPLE_LIMIT = 30;

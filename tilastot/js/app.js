@@ -5,7 +5,7 @@ import {
   selectableYears,
   completeMonthCount,
   roundToTwoSignificantFigures,
-} from "./stats.js";
+} from "./stats.js?v=2026-08-28a";
 import {
   renderColumnChart,
   renderBarRows,
@@ -17,10 +17,10 @@ import {
   renderMonthSeriesChart,
   formatNumber,
   formatPercentDelta,
-} from "./charts.js";
-import { yearRange } from "./cql.js";
-import { BUILDING_PURPOSES } from "./codelists.js";
-import { MUNICIPALITY_NAMES } from "./municipalities.js";
+} from "./charts.js?v=2026-08-28a";
+import { yearRange } from "./cql.js?v=2026-08-28a";
+import { BUILDING_PURPOSES } from "./codelists.js?v=2026-08-28a";
+import { MUNICIPALITY_NAMES } from "./municipalities.js?v=2026-08-28a";
 
 const el = (id) => document.getElementById(id);
 
@@ -48,7 +48,8 @@ const ui = {
   chartPurposes: el("chart-purposes"),
   chartActionTypes: el("chart-action-types"),
   tableActionTypes: el("table-action-types"),
-  compareYear: el("compare-year"),
+  monthYearA: el("month-year-a"),
+  monthYearB: el("month-year-b"),
   monthDetails: el("month-details"),
   monthStatus: el("month-status"),
   monthNote: el("month-note"),
@@ -107,24 +108,39 @@ function stateKey(state, extra = null) {
 }
 
 /**
- * The comparison year options, rebuilt whenever the primary year moves.
+ * Fills both year pickers, once.
  *
- * The primary year itself is excluded — comparing a year to itself plots two
- * identical series — and the previous year is preselected, since "how does this
- * year compare to last" is the question nearly everyone arrives with. An
- * existing choice is preserved across a rebuild where it is still valid, so
- * changing the municipality does not silently reset the comparison.
+ * The card owns its own two years rather than following the page's Vuosi
+ * filter. With an explicit picker for each side, a third year arriving from the
+ * page filter would just be a third opinion about the same question — and it
+ * would make "Kaikki vuodet" mean something the card cannot draw. The pickers
+ * seed from the page's year on first load and are independent after that.
  */
-function populateCompareYears(primaryYear) {
-  if (!ui.compareYear) return;
-  const previous = ui.compareYear.value ? Number(ui.compareYear.value) : null;
-  const candidates = selectableYears().filter((y) => y !== primaryYear);
-  ui.compareYear.innerHTML = "";
-  for (const year of [...candidates].reverse()) {
-    ui.compareYear.appendChild(new Option(String(year), String(year)));
+function populateMonthYears(seedYear) {
+  if (!ui.monthYearA || !ui.monthYearB) return;
+  const years = [...selectableYears()].reverse();
+  for (const select of [ui.monthYearA, ui.monthYearB]) {
+    select.innerHTML = "";
+    for (const year of years) select.appendChild(new Option(String(year), String(year)));
   }
-  const preferred = previous !== null && candidates.includes(previous) ? previous : primaryYear - 1;
-  ui.compareYear.value = String(candidates.includes(preferred) ? preferred : candidates[candidates.length - 1]);
+  ui.monthYearA.value = String(seedYear);
+  ui.monthYearB.value = String(seedYear - 1);
+  syncMonthYearOptions();
+}
+
+/**
+ * Keeps the two pickers from naming the same year.
+ *
+ * A year plotted against itself is two identical series and a row of zero
+ * changes, so the option is disabled on the opposite control rather than left
+ * selectable and then rejected — the constraint is visible before the click,
+ * not explained after it.
+ */
+function syncMonthYearOptions() {
+  if (!ui.monthYearA || !ui.monthYearB) return;
+  for (const [select, other] of [[ui.monthYearA, ui.monthYearB], [ui.monthYearB, ui.monthYearA]]) {
+    for (const option of select.options) option.disabled = option.value === other.value;
+  }
 }
 
 function populateFilters() {
@@ -466,31 +482,16 @@ function render(result, state) {
  * when the section is actually open — that is the whole point of loading it on
  * demand. A closed section costs nothing until someone opens it.
  */
+/**
+ * Neither of these cards follows the year filter, so neither is invalidated by
+ * it. The cached key is deliberately NOT cleared here: loadMonths compares it
+ * and no-ops when the slice it already holds is still the right one, which is
+ * what stops a year change from refiring 24 requests for the same twelve
+ * months. A municipality or purpose change does alter the key, and refetches.
+ */
 function refreshMonthSection(state) {
-  monthInFlight?.abort();
-  monthInFlight = null;
-  monthKey = null;
-  lastMonths = null;
-
-  if (!ui.monthDetails) return;
-
-  // "Kaikki vuodet" has no year to compare against, so the section has nothing
-  // to say. It is disabled rather than hidden, so it does not disappear from
-  // under a reader who had it open.
-  const year = state.dateRange ? state.dateRange.start.getUTCFullYear() : null;
-  const unavailable = year === null;
-  ui.monthDetails.classList.toggle("is-unavailable", unavailable);
-  if (unavailable) {
-    ui.monthDetails.open = false;
-    setMonthStatus("Valitse yksittäinen vuosi nähdäksesi kuukausivertailun.");
-    ui.chartMonths.innerHTML = "";
-    ui.tableMonths.innerHTML = "";
-    return;
-  }
-
-  populateCompareYears(year);
-  setMonthStatus(null);
-  if (ui.monthDetails.open) loadMonths(state);
+  if (!ui.monthDetails?.open) return;
+  loadMonths(state);
 }
 
 /**
@@ -498,13 +499,8 @@ function refreshMonthSection(state) {
  * invalidated only by the filters it actually respects.
  */
 function refreshRollingSection(state) {
-  rollingInFlight?.abort();
-  rollingInFlight = null;
-  rollingKey = null;
-  lastRolling = null;
-  if (!ui.rollingDetails) return;
-  setRollingStatus(null);
-  if (ui.rollingDetails.open) loadRolling(state);
+  if (!ui.rollingDetails?.open) return;
+  loadRolling(state);
 }
 
 function setRollingStatus(text) {
@@ -569,9 +565,11 @@ function setMonthStatus(text) {
 }
 
 async function loadMonths(state) {
-  const year = state.dateRange.start.getUTCFullYear();
-  const compareYear = ui.compareYear?.value ? Number(ui.compareYear.value) : year - 1;
-  const key = stateKey(state, compareYear);
+  const year = Number(ui.monthYearA.value);
+  const compareYear = Number(ui.monthYearB.value);
+  // The card's own years replace the page's, so the page year is not part of
+  // the identity of what is rendered here.
+  const key = stateKey({ ...state, dateRange: null }, `${year}:${compareYear}`);
   if (monthKey === key) return;
 
   monthInFlight?.abort();
@@ -699,34 +697,29 @@ window.addEventListener("resize", () => {
 });
 
 populateFilters();
+populateMonthYears(Number(ui.year.value) || selectableYears()[selectableYears().length - 2]);
 ui.reload.addEventListener("click", refresh);
 // Opening the section is what pays for it. Closing it does not discard what was
 // already fetched, so re-opening the same slice is free.
 ui.monthDetails?.addEventListener("toggle", () => {
-  if (!ui.monthDetails.open) return;
-  // Read the controls, not the last rendered state. Opening the section while a
-  // dashboard load is still in flight is normal — the filters already say which
-  // slice the reader wants, and waiting for the render would close the section
-  // under them for no reason.
-  const state = currentState();
-  // pointer-events cannot stop a keyboard activation, so the guard lives here
-  // too rather than only in CSS.
-  if (!state.dateRange) {
-    ui.monthDetails.open = false;
-    return;
-  }
-  loadMonths(state);
+  // Read the controls, not the last rendered state: opening the section while a
+  // dashboard load is still in flight is normal, and the controls already say
+  // which slice the reader wants.
+  if (ui.monthDetails.open) loadMonths(currentState());
 });
 
 ui.rollingDetails?.addEventListener("toggle", () => {
   if (ui.rollingDetails.open) loadRolling(currentState());
 });
 
-// Changing the comparison year reloads only this card; the rest of the page is
-// scoped by the main filters and is unaffected by it.
-ui.compareYear?.addEventListener("change", () => {
-  if (ui.monthDetails?.open) loadMonths(currentState());
-});
+// Either year reloads only this card; the rest of the page is scoped by the main
+// filters and is unaffected by them.
+for (const select of [ui.monthYearA, ui.monthYearB]) {
+  select?.addEventListener("change", () => {
+    syncMonthYearOptions();
+    if (ui.monthDetails?.open) loadMonths(currentState());
+  });
+}
 for (const control of [ui.year, ui.municipality, ui.purpose]) {
   control.addEventListener("change", refresh);
 }

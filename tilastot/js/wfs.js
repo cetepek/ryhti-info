@@ -25,7 +25,7 @@
 //     or main_purpose columns. ~215 bytes/row is the floor, not a target to
 //     tune further.
 
-import { proxyEnabled } from "./api.js";
+import { proxyEnabled } from "./api.js?v=2026-08-28a";
 
 const DIRECT_WFS = "https://paikkatiedot.ymparisto.fi/geoserver/ryhti_permit/ows";
 const TYPE_NAME = "ryhti_permit:open_permit_building";
