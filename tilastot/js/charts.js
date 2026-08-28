@@ -227,6 +227,137 @@ function roundedTopBar(x, y, width, height, radius) {
   ].join(" ");
 }
 
+/** Pattern ids must be unique per document, and several charts can coexist. */
+let patternSeq = 0;
+
+/**
+ * A single month series across a rolling window.
+ *
+ * The running month is drawn as a HATCH rather than a shorter solid bar. Length
+ * is the one thing a bar chart encodes, so a partial month drawn solid is read
+ * as a real decline no matter what the caption says; changing the fill changes
+ * what kind of thing the mark is, which is the actual message. The hatch is a
+ * texture and not a color, so it survives greyscale and every form of color
+ * vision deficiency.
+ *
+ * @param {HTMLElement} container
+ * @param {Array<{year:number,month:number,label:string,count:number|null,partial:boolean}>} data
+ */
+export function renderMonthSeriesChart(container, data, options = {}) {
+  const { unit = "lupaa" } = options;
+  container.innerHTML = "";
+  if (!data || data.length === 0) {
+    container.appendChild(emptyNote("Ei tietoja valituilla rajauksilla."));
+    return;
+  }
+
+  const width = Math.max(container.clientWidth || 640, 320);
+  const height = 280;
+  // Deeper bottom padding than the year chart: this axis carries two labels per
+  // slot, the month and (on a change) the year.
+  const pad = { top: 16, right: 8, bottom: 46, left: 68 };
+  const plotWidth = width - pad.left - pad.right;
+  const plotHeight = height - pad.top - pad.bottom;
+
+  const values = data.map((d) => d.count).filter((v) => Number.isFinite(v));
+  const { max: axisMax, step } = niceScale(Math.max(...values, 0));
+
+  const svg = svgEl("svg", {
+    width: "100%",
+    height,
+    viewBox: `0 0 ${width} ${height}`,
+    role: "img",
+    "aria-label": `Lupien määrä kuukausittain, ${data[0].label} ${data[0].year} – ${data[data.length - 1].label} ${data[data.length - 1].year}`,
+  });
+
+  const patternId = `hatch-partial-${++patternSeq}`;
+  const defs = svgEl("defs");
+  const pattern = svgEl("pattern", {
+    id: patternId,
+    width: 7,
+    height: 7,
+    patternUnits: "userSpaceOnUse",
+    patternTransform: "rotate(45)",
+  });
+  pattern.appendChild(svgEl("rect", { width: 7, height: 7, class: "hatch-ground" }));
+  pattern.appendChild(svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 7, class: "hatch-stripe" }));
+  defs.appendChild(pattern);
+  svg.appendChild(defs);
+
+  for (let value = 0; value <= axisMax + 1e-9; value += step) {
+    const y = pad.top + plotHeight - (value / axisMax) * plotHeight;
+    svg.appendChild(
+      svgEl("line", { x1: pad.left, y1: y, x2: width - pad.right, y2: y, class: value === 0 ? "axis-line" : "grid-line" })
+    );
+    const label = svgEl("text", { x: pad.left - 8, y: y + 4, class: "axis-label", "text-anchor": "end" });
+    label.textContent = formatNumber(value);
+    svg.appendChild(label);
+  }
+
+  const slot = plotWidth / data.length;
+  const barWidth = Math.max(Math.min(slot - 6, 30), 4);
+  const radius = Math.min(4, barWidth / 2);
+
+  data.forEach((d, index) => {
+    const x = pad.left + slot * index + (slot - barWidth) / 2;
+
+    if (Number.isFinite(d.count) && axisMax > 0) {
+      const barHeight = (d.count / axisMax) * plotHeight;
+      if (barHeight > 0) {
+        const bar = svgEl("path", {
+          d: roundedTopBar(x, pad.top + plotHeight - barHeight, barWidth, barHeight, radius),
+          class: d.partial ? "bar-mark-partial" : "bar-mark",
+        });
+        if (d.partial) bar.setAttribute("fill", `url(#${patternId})`);
+        svg.appendChild(bar);
+      }
+    }
+
+    const monthLabel = svgEl("text", {
+      x: x + barWidth / 2,
+      y: height - pad.bottom + 18,
+      class: "axis-label",
+      "text-anchor": "middle",
+    });
+    monthLabel.textContent = slot < 30 ? d.label.slice(0, 1) : d.label;
+    svg.appendChild(monthLabel);
+
+    // The year is printed only where it changes, so the axis says which year a
+    // month belongs to without repeating it thirteen times.
+    if (index === 0 || d.year !== data[index - 1].year) {
+      const yearLabel = svgEl("text", {
+        x: x + barWidth / 2,
+        y: height - pad.bottom + 33,
+        class: "axis-label axis-label-year",
+        "text-anchor": "middle",
+      });
+      yearLabel.textContent = String(d.year);
+      svg.appendChild(yearLabel);
+    }
+
+    const readout = Number.isFinite(d.count) ? `${formatNumber(d.count)} ${unit}` : "ei tietoa";
+    const suffix = d.partial ? " (kesken)" : "";
+    const hit = svgEl("rect", {
+      x: pad.left + slot * index,
+      y: pad.top,
+      width: slot,
+      height: plotHeight,
+      class: "hit-target",
+      tabindex: "0",
+      role: "img",
+      "aria-label": `${d.label} ${d.year}${suffix}: ${readout}`,
+    });
+    const show = () => showTooltip(hit, readout, `${d.label} ${d.year}${suffix}`);
+    hit.addEventListener("pointerenter", show);
+    hit.addEventListener("focus", show);
+    hit.addEventListener("pointerleave", hideTooltip);
+    hit.addEventListener("blur", hideTooltip);
+    svg.appendChild(hit);
+  });
+
+  container.appendChild(svg);
+}
+
 /**
  * Grouped columns: one slot per month, two bars per slot.
  *

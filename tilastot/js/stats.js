@@ -333,23 +333,50 @@ function assemble(results, state, years, plan) {
   };
 }
 
+/** How many of a year's months are finished. Past: 12. Future: 0. */
+export function completeMonthCount(year, now = new Date()) {
+  const currentYear = now.getUTCFullYear();
+  if (year < currentYear) return 12;
+  if (year > currentYear) return 0;
+  // getUTCMonth() is 0-based, so it is already "the count of finished months".
+  return now.getUTCMonth();
+}
+
 /**
- * The months of `year` that are finished, and therefore comparable.
+ * The months that are finished in BOTH years, and therefore comparable.
  *
  * A running month is dropped outright rather than drawn short. Two thirds of an
  * August against a whole previous August is not a decline, but that is exactly
- * what it looks like on a bar chart — the same trap the year-over-year chart
- * already refuses to walk into for the current year. A partial bar cannot be
- * fixed with a caption, because the shape is read before the caption is.
+ * what it looks like on a bar chart. A partial bar cannot be fixed with a
+ * caption, because the shape is read before the caption is.
  *
- * A past year returns all twelve; a future year returns none.
+ * Both years have to be checked, not just the earlier one: with an arbitrary
+ * comparison year the running year can be on either side of the pair, and
+ * comparing a finished August against an unfinished one is the same lie in
+ * whichever direction it points.
  */
-export function comparableMonths(year, now = new Date()) {
-  const currentYear = now.getUTCFullYear();
-  if (year < currentYear) return Array.from({ length: 12 }, (_, i) => i + 1);
-  if (year > currentYear) return [];
-  // getUTCMonth() is 0-based, so it is already "the count of finished months".
-  return Array.from({ length: now.getUTCMonth() }, (_, i) => i + 1);
+export function comparableMonths(year, compareYear, now = new Date()) {
+  const limit = Math.min(completeMonthCount(year, now), completeMonthCount(compareYear, now));
+  return Array.from({ length: limit }, (_, i) => i + 1);
+}
+
+/**
+ * The running month and the twelve before it, oldest first.
+ *
+ * A rolling window rather than a calendar year: it always ends at today, so it
+ * answers "how are things now" without waiting for a year boundary. The final
+ * entry is flagged partial — the caller must render it as different in kind,
+ * not merely shorter.
+ */
+export function rollingMonths(now = new Date(), count = 13) {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  return Array.from({ length: count }, (_, i) => {
+    const offset = count - 1 - i;
+    // Date.UTC normalises a negative month index back into the previous year.
+    const d = new Date(Date.UTC(year, month - 1 - offset, 1));
+    return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, partial: offset === 0 };
+  });
 }
 
 /**
@@ -362,17 +389,18 @@ export function comparableMonths(year, now = new Date()) {
  *
  * Counts are exact: they come from the API's match counter, never a sample.
  *
- * @param {object} state   filter state; its dateRange is replaced per month
- * @param {number} year    the year to compare against `year - 1`
+ * @param {object} state        filter state; its dateRange is replaced per month
+ * @param {number} year         the primary year
+ * @param {number} compareYear  the year it is measured against
  */
-export async function loadMonthlyComparison(state, year, options = {}) {
+export async function loadMonthlyComparison(state, year, compareYear, options = {}) {
   const { onProgress, signal } = options;
-  const months = comparableMonths(year);
-  if (months.length === 0) return { year, previousYear: year - 1, months: [] };
+  const months = comparableMonths(year, compareYear);
+  if (months.length === 0) return { year, compareYear, months: [] };
 
   const operations = [];
   for (const month of months) {
-    for (const subject of [year, year - 1]) {
+    for (const subject of [year, compareYear]) {
       operations.push(async () => {
         const filter = buildCQLFilter({ ...state, dateRange: monthRange(subject, month) });
         return { month, subject, count: await fetchCount(filter, signal) };
@@ -400,7 +428,45 @@ export async function loadMonthlyComparison(state, year, options = {}) {
     else entry.previous = row.count;
   }
 
-  return { year, previousYear: year - 1, months: [...byMonth.values()] };
+  return { year, compareYear, months: [...byMonth.values()] };
+}
+
+/**
+ * Counts for the running month and the twelve before it.
+ *
+ * Deliberately ignores the page's year filter — a rolling window that snapped to
+ * a calendar year would not be rolling. Every other filter still applies, so it
+ * is the same slice of the data as the rest of the page, cut on a moving window
+ * instead of a fixed one.
+ */
+export async function loadRollingMonths(state, options = {}) {
+  const { onProgress, signal } = options;
+  const window = rollingMonths();
+
+  const operations = window.map(({ year, month }) => async () => {
+    const filter = buildCQLFilter({ ...state, dateRange: monthRange(year, month) });
+    return { year, month, count: await fetchCount(filter, signal) };
+  });
+
+  const { results, errors, failureCount } = await runLimited(operations, {
+    maxConcurrency: 8,
+    onProgress,
+    signal,
+  });
+
+  if (failureCount === operations.length) {
+    throw errors.find(Boolean) ?? new Error("Kuukausisarjan haku epäonnistui.");
+  }
+
+  const counts = new Map(results.filter(Boolean).map((r) => [`${r.year}-${r.month}`, r.count]));
+  return {
+    months: window.map((m) => ({
+      ...m,
+      // null, not zero: a dropped request and a genuinely empty month are
+      // different readings of a bar.
+      count: counts.has(`${m.year}-${m.month}`) ? counts.get(`${m.year}-${m.month}`) : null,
+    })),
+  };
 }
 
 /** Which calendar year, if any, a date range exactly represents. */

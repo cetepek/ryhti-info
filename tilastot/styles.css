@@ -283,6 +283,13 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
    left, compared year always right — with the legend and the table twin behind
    that. Color is never the only thing carrying which year is which. */
 .bar-mark-previous { fill: var(--text-muted); }
+/* The running month: same hue, different texture. Length already means "how
+   many", so a partial month must not differ from a whole one by length alone —
+   the hatch says it is a different KIND of bar. Texture rather than a paler
+   color, so it survives greyscale and any color vision deficiency. */
+.hatch-ground { fill: var(--series-blue); fill-opacity: 0.18; }
+.hatch-stripe { stroke: var(--series-blue); stroke-width: 3.5; }
+.axis-label-year { fill: var(--text-secondary); font-weight: 600; }
 /* The one direct label on the chart: the peak. Text wears a text token, never
    the series color. */
 .peak-label {
@@ -541,6 +548,28 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* Inline year picker inside a card head. Borrows the filter row's select
+   styling but sits on one line with its label, because it scopes one card
+   rather than the page. */
+.inline-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.inline-field label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+.inline-field select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--axis-line);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.inline-field select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
 .lazy-body { margin-top: 16px; }
 .lazy-status { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 12px; }
 .lazy-status[hidden] { display: none; }

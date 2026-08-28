@@ -1,7 +1,9 @@
 import {
   loadStatistics,
   loadMonthlyComparison,
+  loadRollingMonths,
   selectableYears,
+  completeMonthCount,
   roundToTwoSignificantFigures,
 } from "./stats.js";
 import {
@@ -12,6 +14,7 @@ import {
   renderLineChart,
   renderDivergingColumnChart,
   renderGroupedColumnChart,
+  renderMonthSeriesChart,
   formatNumber,
   formatPercentDelta,
 } from "./charts.js";
@@ -45,11 +48,16 @@ const ui = {
   chartPurposes: el("chart-purposes"),
   chartActionTypes: el("chart-action-types"),
   tableActionTypes: el("table-action-types"),
+  compareYear: el("compare-year"),
   monthDetails: el("month-details"),
   monthStatus: el("month-status"),
   monthNote: el("month-note"),
   chartMonths: el("chart-months"),
   tableMonths: el("table-months"),
+  rollingDetails: el("rolling-details"),
+  rollingStatus: el("rolling-status"),
+  chartRolling: el("chart-rolling"),
+  tableRolling: el("table-rolling"),
   chartMuniCount: el("chart-muni-count"),
   chartMuniArea: el("chart-muni-area"),
   muniAreaNote: el("muni-area-note"),
@@ -74,6 +82,10 @@ let monthKey = null;
 let monthInFlight = null;
 /** The rendered comparison, kept so a resize can re-lay-out its SVG. */
 let lastMonths = null;
+/** Same, for the rolling window, which has its own independent load. */
+let rollingKey = null;
+let rollingInFlight = null;
+let lastRolling = null;
 const MONTH_NAMES = [
   "tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu",
   "heinäkuu", "elokuu", "syyskuu", "lokakuu", "marraskuu", "joulukuu",
@@ -85,12 +97,34 @@ const MONTH_NAMES_SHORT = [
 ];
 
 /** Identifies a filter slice, so a cached month render can be matched to it. */
-function stateKey(state) {
+function stateKey(state, extra = null) {
   return JSON.stringify({
     year: state.dateRange ? state.dateRange.start.getUTCFullYear() : null,
     municipalities: state.municipalities,
     purposes: state.purposes,
+    extra,
   });
+}
+
+/**
+ * The comparison year options, rebuilt whenever the primary year moves.
+ *
+ * The primary year itself is excluded — comparing a year to itself plots two
+ * identical series — and the previous year is preselected, since "how does this
+ * year compare to last" is the question nearly everyone arrives with. An
+ * existing choice is preserved across a rebuild where it is still valid, so
+ * changing the municipality does not silently reset the comparison.
+ */
+function populateCompareYears(primaryYear) {
+  if (!ui.compareYear) return;
+  const previous = ui.compareYear.value ? Number(ui.compareYear.value) : null;
+  const candidates = selectableYears().filter((y) => y !== primaryYear);
+  ui.compareYear.innerHTML = "";
+  for (const year of [...candidates].reverse()) {
+    ui.compareYear.appendChild(new Option(String(year), String(year)));
+  }
+  const preferred = previous !== null && candidates.includes(previous) ? previous : primaryYear - 1;
+  ui.compareYear.value = String(candidates.includes(preferred) ? preferred : candidates[candidates.length - 1]);
 }
 
 function populateFilters() {
@@ -170,6 +204,7 @@ async function refresh() {
     lastResult = result;
     render(result, state);
     refreshMonthSection(state);
+    refreshRollingSection(state);
   } catch (error) {
     if (error?.name === "AbortError" || controller.signal.aborted) return;
     showError(error);
@@ -453,8 +488,78 @@ function refreshMonthSection(state) {
     return;
   }
 
+  populateCompareYears(year);
   setMonthStatus(null);
   if (ui.monthDetails.open) loadMonths(state);
+}
+
+/**
+ * The rolling window is independent of the year filter by design, so it is
+ * invalidated only by the filters it actually respects.
+ */
+function refreshRollingSection(state) {
+  rollingInFlight?.abort();
+  rollingInFlight = null;
+  rollingKey = null;
+  lastRolling = null;
+  if (!ui.rollingDetails) return;
+  setRollingStatus(null);
+  if (ui.rollingDetails.open) loadRolling(state);
+}
+
+function setRollingStatus(text) {
+  if (!ui.rollingStatus) return;
+  ui.rollingStatus.hidden = text === null;
+  ui.rollingStatus.textContent = text ?? "";
+}
+
+async function loadRolling(state) {
+  // The year filter is deliberately excluded from the key: the window does not
+  // follow it, so changing the year alone must not refetch the same 13 months.
+  const key = stateKey({ ...state, dateRange: null });
+  if (rollingKey === key) return;
+
+  rollingInFlight?.abort();
+  const controller = new AbortController();
+  rollingInFlight = controller;
+
+  setRollingStatus("Haetaan…");
+  try {
+    const result = await loadRollingMonths(state, {
+      signal: controller.signal,
+      onProgress: (done, total) => {
+        if (controller.signal.aborted) return;
+        setRollingStatus(`${done} / ${total}`);
+      },
+    });
+    if (controller.signal.aborted) return;
+    rollingKey = key;
+    renderRolling(result);
+  } catch (error) {
+    if (error?.name === "AbortError" || controller.signal.aborted) return;
+    setRollingStatus(error?.message ?? "Kuukausisarjan haku epäonnistui.");
+  } finally {
+    if (rollingInFlight === controller) rollingInFlight = null;
+  }
+}
+
+function renderRolling(result) {
+  lastRolling = result;
+  setRollingStatus(null);
+  const rows = result.months.map((m) => ({
+    ...m,
+    label: MONTH_NAMES_SHORT[m.month - 1],
+  }));
+
+  renderMonthSeriesChart(ui.chartRolling, rows);
+  renderTable(
+    ui.tableRolling,
+    ["Kuukausi", "Lupia"],
+    rows.map((m) => [
+      `${MONTH_NAMES[m.month - 1]} ${m.year}${m.partial ? " (kesken)" : ""}`,
+      formatNumber(m.count),
+    ])
+  );
 }
 
 function setMonthStatus(text) {
@@ -464,17 +569,18 @@ function setMonthStatus(text) {
 }
 
 async function loadMonths(state) {
-  const key = stateKey(state);
+  const year = state.dateRange.start.getUTCFullYear();
+  const compareYear = ui.compareYear?.value ? Number(ui.compareYear.value) : year - 1;
+  const key = stateKey(state, compareYear);
   if (monthKey === key) return;
 
-  const year = state.dateRange.start.getUTCFullYear();
   monthInFlight?.abort();
   const controller = new AbortController();
   monthInFlight = controller;
 
   setMonthStatus("Haetaan…");
   try {
-    const result = await loadMonthlyComparison(state, year, {
+    const result = await loadMonthlyComparison(state, year, compareYear, {
       signal: controller.signal,
       onProgress: (done, total) => {
         if (controller.signal.aborted) return;
@@ -494,11 +600,14 @@ async function loadMonths(state) {
 
 function renderMonths(result) {
   lastMonths = result;
-  const { year, previousYear, months } = result;
+  const { year, compareYear, months } = result;
 
   if (months.length === 0) {
+    // Name the year that actually ran out of finished months — with a free
+    // choice of comparison year it can be either side of the pair.
+    const short = completeMonthCount(year) <= completeMonthCount(compareYear) ? year : compareYear;
     setMonthStatus(
-      `Vuodelta ${year} ei ole vielä yhtään päättynyttä kuukautta, joten vertailtavaa ei ole.`
+      `Vuodelta ${short} ei ole vielä yhtään päättynyttä kuukautta, joten vertailtavaa ei ole.`
     );
     ui.chartMonths.innerHTML = "";
     ui.tableMonths.innerHTML = "";
@@ -513,12 +622,12 @@ function renderMonths(result) {
       current: m.current,
       previous: m.previous,
     })),
-    { currentLabel: String(year), previousLabel: String(previousYear) }
+    { currentLabel: String(year), previousLabel: String(compareYear) }
   );
 
   renderTable(
     ui.tableMonths,
-    ["Kuukausi", String(year), String(previousYear), "Muutos"],
+    ["Kuukausi", String(year), String(compareYear), "Muutos"],
     months.map((m) => [
       MONTH_NAMES[m.month - 1],
       formatNumber(m.current),
@@ -585,6 +694,7 @@ window.addEventListener("resize", () => {
       lastResult.yearBuckets.map((b) => ({ year: b.year, value: b.medianGrossFloorArea }))
     );
     if (lastMonths) renderMonths(lastMonths);
+    if (lastRolling) renderRolling(lastRolling);
   }, 150);
 });
 
@@ -606,6 +716,16 @@ ui.monthDetails?.addEventListener("toggle", () => {
     return;
   }
   loadMonths(state);
+});
+
+ui.rollingDetails?.addEventListener("toggle", () => {
+  if (ui.rollingDetails.open) loadRolling(currentState());
+});
+
+// Changing the comparison year reloads only this card; the rest of the page is
+// scoped by the main filters and is unaffected by it.
+ui.compareYear?.addEventListener("change", () => {
+  if (ui.monthDetails?.open) loadMonths(currentState());
 });
 for (const control of [ui.year, ui.municipality, ui.purpose]) {
   control.addEventListener("change", refresh);
