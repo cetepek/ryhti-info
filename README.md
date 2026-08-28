@@ -2,6 +2,8 @@
 
 Ryhti näyttää Suomen avoimen rakentamislupa-aineiston selkeästi selattavana. Selaa lupia listana, suodata kunnan, vuoden, käyttötarkoituksen ja muiden tietojen mukaan, katso lupia kartalla ja tutki tilastoja.
 
+[Lataa Ryhti App Storesta](https://apps.apple.com/fi/app/ryhti-rakentamisluvat/id6804220473) — ilmainen, iPhonelle ja iPadille, vaatii iOS 17:n tai uudemman.
+
 ## Tietolähde ja lisenssi
 
 Rakentamislupatiedot: Suomen ympäristökeskus (SYKE), haettu heidän [avoimista rajapinnoistaan](https://www.syke.fi/fi/ymparistotieto/avoimet-rajapinnat/paikkatietorajapinnat). Aineisto on käytössä Creative Commons Nimeä 4.0 Kansainvälinen -lisenssillä ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.fi)).

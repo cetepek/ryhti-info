@@ -71,6 +71,34 @@ a:focus-visible, summary:focus-visible {
   max-width: 60ch;
 }
 
+/* Primary call to action. Deliberately NOT the accent blue: white on --accent
+   measures 4.41:1 light and 3.64:1 dark, both short of the 4.5:1 AA needs for
+   text this size (0.98rem bold is under the 18.66px "large text" threshold).
+   The neutral pair inverts cleanly instead and clears AA with room to spare in
+   both themes.
+
+   Text button rather than Apple's official badge artwork: the badge is a
+   trademarked asset with its own brand guidelines, and a hand-redrawn imitation
+   would be both worse-looking and not the sanctioned mark. Drop the real asset
+   in from Apple's marketing tools if you want the badge proper. */
+.cta { margin: 24px 0 10px; }
+.app-store-button {
+  display: inline-block;
+  background: var(--text-primary);
+  color: var(--page-plane);
+  text-decoration: none;
+  font-size: 0.98rem;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 10px;
+}
+.app-store-button:hover { opacity: 0.88; }
+.cta-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 main { padding-bottom: 8px; }
 
 .card {
