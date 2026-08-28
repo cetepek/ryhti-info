@@ -398,10 +398,17 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
   stroke-width: 2;
   transition: opacity 120ms ease;
 }
-.donut-figure:hover .donut-slice { opacity: 0.45; }
-.donut-figure .donut-slice:hover,
-.donut-figure .donut-slice:focus-visible { opacity: 1; }
+/* is-muted is the persistent state (a filter elsewhere singled out one
+   category); is-dimmed is the transient one (the reader is pointing at a
+   neighbour). is-hot is declared last so the slice under the cursor comes back
+   to full strength even while a filter has it muted. All three are set from
+   charts.js — a CSS :hover on the <svg> root fires over the empty corners of
+   its box and inside the hole, which is not where the ring is. */
+.donut-slice.is-muted,
+.donut-slice.is-dimmed { opacity: 0.42; }
+.donut-slice.is-hot { opacity: 1; }
 .donut-slice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.legend-item.is-muted { opacity: 0.5; }
 /* Text in the hole wears text tokens, never a series color. */
 .donut-center-value {
   fill: var(--text-primary);

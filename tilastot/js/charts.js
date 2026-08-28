@@ -648,15 +648,24 @@ function donutSlicePath(cx, cy, rOuter, rInner, startAngle, endAngle) {
  * @param {HTMLElement} container
  * @param {Array<{label:string,value:number,slot:number}>} segments  fixed order, slot 1-7
  * @param {object} [options]
- * @param {string} [options.centerLabel]   caption under the figure in the hole
+ * @param {string} [options.centerLabel]   caption under the figure in the hole.
+ *   Break it with \n where it is too long for the hole — SVG text will not wrap.
  * @param {string} [options.unitLabel]     noun for the tooltip ("lupaa")
  * @param {boolean} [options.legendValues] print counts and shares in the legend.
  *   Off where the ring sits above bar rows carrying the same numbers — there the
  *   legend is a color key and nothing more, and repeating the figures twice in
  *   one card would be noise rather than redundancy that earns its place.
+ * @param {number|null} [options.emphasisSlot] hold this slot at full strength and
+ *   mute the rest. Used when a filter elsewhere on the page has singled out one
+ *   category, so the ring shows where that category sits inside the whole.
  */
 export function renderDonutChart(container, segments, options = {}) {
-  const { centerLabel = "yhteensä", unitLabel = "lupaa", legendValues = true } = options;
+  const {
+    centerLabel = "yhteensä",
+    unitLabel = "lupaa",
+    legendValues = true,
+    emphasisSlot = null,
+  } = options;
   container.innerHTML = "";
 
   const drawable = (segments ?? []).filter((s) => Number.isFinite(s.value) && s.value > 0);
@@ -690,39 +699,72 @@ export function renderDonutChart(container, segments, options = {}) {
     "aria-label": `Lupien jakauma käyttötarkoituksittain, yhteensä ${formatNumber(total)} ${unitLabel}`,
   });
 
+  const slices = [];
   let angle = -Math.PI / 2;
   for (const segment of drawable) {
     const sweep = share(segment.value) * Math.PI * 2;
+    const muted = emphasisSlot !== null && segment.slot !== emphasisSlot;
     const path = svgEl("path", {
       d: donutSlicePath(cx, cy, rOuter, rInner, angle, angle + sweep),
-      class: `donut-slice slot-${segment.slot}`,
+      class: `donut-slice slot-${segment.slot}${muted ? " is-muted" : ""}`,
       tabindex: "0",
       role: "img",
       "aria-label": `${segment.label}: ${formatNumber(segment.value)} ${unitLabel}, ${shareLabel(segment.value)}`,
     });
-    const show = () =>
+
+    // Hover emphasis is applied here rather than by a CSS :hover on the <svg>
+    // root. A ring segment's own centre point lies in the hole, and the root
+    // svg's box covers the four corners outside the ring — so a selector hung
+    // off the root fires in places the reader is not pointing at anything, and
+    // misses where they are. Driving it from the slice's own pointer events is
+    // the only version that tracks what is actually under the cursor.
+    const enter = () => {
+      for (const other of slices) other.classList.toggle("is-dimmed", other !== path);
+      path.classList.add("is-hot");
       showTooltip(path, `${formatNumber(segment.value)} ${unitLabel} · ${shareLabel(segment.value)}`, segment.label);
-    path.addEventListener("pointerenter", show);
-    path.addEventListener("focus", show);
-    path.addEventListener("pointerleave", hideTooltip);
-    path.addEventListener("blur", hideTooltip);
+    };
+    const leave = () => {
+      for (const other of slices) other.classList.remove("is-dimmed", "is-hot");
+      hideTooltip();
+    };
+    path.addEventListener("pointerenter", enter);
+    path.addEventListener("focus", enter);
+    path.addEventListener("pointerleave", leave);
+    path.addEventListener("blur", leave);
+
+    slices.push(path);
     svg.appendChild(path);
     angle += sweep;
   }
 
   // The hole is not decoration — it carries the whole the slices are parts of,
   // which is the one number a ring cannot encode in its own geometry.
-  const centerValue = svgEl("text", { x: cx, y: cy + 2, class: "donut-center-value" });
+  //
+  // SVG text does not wrap, and the hole is only ~116px wide, so a caption long
+  // enough to be grammatical ("lupaa kaikissa käyttötarkoituksissa") would run
+  // straight out through the ring. The caller breaks it with \n and each line is
+  // drawn as its own <text>; the block is then centred vertically on the hole so
+  // one-line and two-line captions both sit balanced under the figure.
+  const captionLines = String(centerLabel).split("\n").filter(Boolean);
+  const captionHeight = captionLines.length * 13;
+  const valueBaseline = cy + 2 - (captionHeight - 13) / 2;
+
+  const centerValue = svgEl("text", { x: cx, y: valueBaseline, class: "donut-center-value" });
   centerValue.textContent = formatNumber(total);
-  const centerCaption = svgEl("text", { x: cx, y: cy + 20, class: "donut-center-label" });
-  centerCaption.textContent = centerLabel;
-  svg.append(centerValue, centerCaption);
+  svg.appendChild(centerValue);
+
+  captionLines.forEach((line, index) => {
+    const caption = svgEl("text", { x: cx, y: valueBaseline + 18 + index * 13, class: "donut-center-label" });
+    caption.textContent = line;
+    svg.appendChild(caption);
+  });
 
   const legend = document.createElement("ul");
   legend.className = `donut-legend${legendValues ? "" : " key-only"}`;
   for (const segment of segments ?? []) {
     const item = document.createElement("li");
-    item.className = "legend-item";
+    const muted = emphasisSlot !== null && segment.slot !== emphasisSlot;
+    item.className = `legend-item${muted ? " is-muted" : ""}`;
 
     const swatch = document.createElement("span");
     swatch.className = `legend-swatch swatch-${segment.slot}`;
@@ -749,6 +791,42 @@ export function renderDonutChart(container, segments, options = {}) {
 
   wrapper.append(svg, legend);
   container.appendChild(wrapper);
+
+  // Only now, once the figure is laid out, can the text be measured. The total
+  // in the hole ranges from three digits (one purpose in one small municipality)
+  // to seven ("Kaikki vuodet" across the whole country), and seven digits at the
+  // display size overruns the hole and crosses the ring. Shrink to fit rather
+  // than either clipping the number or sizing every donut for the worst case.
+  fitInsideHole(centerValue, cx, cy, rInner, 26);
+  for (const line of svg.querySelectorAll(".donut-center-label")) {
+    fitInsideHole(line, cx, cy, rInner, 11);
+  }
+}
+
+/**
+ * Shrinks one centred line until it fits the hole at its own baseline.
+ *
+ * The hole is a circle, so the space available is the chord at that line's
+ * height, not the full diameter — a caption sitting below the figure has
+ * noticeably less room than the figure itself.
+ */
+function fitInsideHole(node, cx, cy, rInner, startSize) {
+  let box;
+  try {
+    box = node.getBBox();
+  } catch {
+    return; // not rendered (detached or display:none); nothing to measure against
+  }
+  const dy = box.y + box.height / 2 - cy;
+  const available = 2 * Math.sqrt(Math.max(rInner * rInner - dy * dy, 0)) - 8;
+  if (available <= 0 || box.width <= available) return;
+  // One proportional step gets within a hair; floor it so a rounding error
+  // cannot leave it a pixel over, and never go below legibility.
+  const scaled = Math.max(Math.floor(startSize * (available / box.width)), 11);
+  // Inline style, not a font-size attribute: the size comes from a stylesheet
+  // rule (.donut-center-value), and a presentation attribute loses to any CSS
+  // declaration, so setAttribute here would silently do nothing.
+  node.style.fontSize = `${scaled}px`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -951,7 +1029,7 @@ export function renderDivergingColumnChart(container, data) {
       svgEl("line", { x1: pad.left, y1: y, x2: width - pad.right, y2: y, class: isZero ? "zero-line" : "grid-line" })
     );
     const label = svgEl("text", { x: pad.left - 8, y: y + 4, class: "axis-label", "text-anchor": "end" });
-    label.textContent = `${value > 0 ? "+" : ""}${formatNumber(value)} %`;
+    label.textContent = formatAxisPercent(value, step);
     svg.appendChild(label);
   }
 
@@ -1035,6 +1113,27 @@ export function renderDivergingColumnChart(container, data) {
   });
 
   container.appendChild(svg);
+}
+
+/**
+ * One percent tick, at the precision its own step actually resolves.
+ *
+ * Rounding every tick to a whole percent breaks as soon as the step is
+ * fractional — a half-percent step renders as "-1 %, -1 %, -0 %, 0 %, +1 %,
+ * +1 %", with duplicate labels and a negative zero. That is the normal case
+ * whenever the largest year-over-year change is only a few percent, which is
+ * exactly what a single stable municipality looks like.
+ */
+function formatAxisPercent(value, step) {
+  const decimals = step >= 1 ? 0 : step >= 0.1 ? 1 : 2;
+  // Number() collapses a negative zero produced by rounding, so a tick just
+  // below the zero line cannot render as "-0 %".
+  const rounded = Number(value.toFixed(decimals)) || 0;
+  const text = rounded.toLocaleString("fi-FI", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${rounded > 0 ? "+" : ""}${text} %`;
 }
 
 /** Signed percentage, always carrying its sign so a rise never reads as a level. */

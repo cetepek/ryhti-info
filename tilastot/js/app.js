@@ -365,6 +365,14 @@ function render(result, state) {
   // Ring order = code order, so a slice keeps its color and its position under
   // every filter. The bar rows below stay sorted by count, which is the ranking
   // read; the ring is the shape read.
+  // The breakdown deliberately ignores the purpose filter — each purpose is
+  // counted with its own code, so the card always shows all seven. That is the
+  // right behaviour (it shows where the filtered type sits inside the whole),
+  // but it means this card's total is LARGER than the headline figure whenever a
+  // purpose is selected. Emphasis plus an explicit note is what keeps that from
+  // reading as a contradiction.
+  const activePurpose = state.purposes[0] ?? null;
+
   renderDonutChart(
     ui.chartPurposeSplit,
     BUILDING_PURPOSES.map((purpose) => ({
@@ -372,7 +380,17 @@ function render(result, state) {
       value: result.purposeBreakdown.find((p) => p.code === purpose.code)?.count ?? 0,
       slot: purposeSlot(purpose.code),
     })),
-    { centerLabel: "luokiteltua lupaa", unitLabel: "lupaa", legendValues: false }
+    {
+      // Both captions sit directly under the count and have to read as one
+      // phrase with it, which is the partitive singular a numeral governs.
+      // The filtered one is also kept short: the hole is only ~105px wide at
+      // the caption's baseline, and it just has to stop this number being read
+      // as the filtered headline figure — the note above carries the rest.
+      centerLabel: activePurpose ? "lupaa kaikkiaan" : "luokiteltua lupaa",
+      unitLabel: "lupaa",
+      legendValues: false,
+      emphasisSlot: activePurpose ? purposeSlot(activePurpose) : null,
+    }
   );
 
   // Short name on the chart (the official name wraps to three lines and pushes
@@ -394,7 +412,7 @@ function render(result, state) {
       shareLabel(p.count, classifiedTotal),
     ])
   );
-  renderPurposeNote(result.totalCount, classifiedTotal);
+  renderPurposeNote(result.totalCount, classifiedTotal, activePurpose);
 
   // Shares here are shares of the headline total, not of a classified subset:
   // every permit in this collection carries an action type, so there is no
@@ -662,13 +680,31 @@ function renderYearTable(buckets, deltas) {
 /**
  * Says what the donut's whole actually is.
  *
- * The purpose counts need not add up to the headline total — a permit with no
- * purpose code is counted in one and not the other — so when they differ the
- * card has to say so, or the shares read as shares of the wrong number.
+ * Two different things can make this card's figures disagree with the headline
+ * total, and both have to be said out loud or the page looks broken:
+ *
+ *  * A permit with no purpose code is counted in the headline total and in no
+ *    slice, so the seven purposes can add up to less than it.
+ *  * With a purpose selected, the headline total is that ONE purpose while this
+ *    card still shows all seven — so the card's total is the larger number. The
+ *    unclassified arithmetic is meaningless in that case (it subtracts a whole
+ *    from a part), which is why it is only computed with no purpose selected.
  */
-function renderPurposeNote(totalCount, classifiedTotal) {
+function renderPurposeNote(totalCount, classifiedTotal, activePurpose) {
   if (!ui.purposeNote) return;
   const base = "Lupien määrä rakennuksen pääkäyttötarkoituksen mukaan.";
+
+  if (activePurpose) {
+    const name = BUILDING_PURPOSES.find((p) => p.code === activePurpose)?.shortName ?? "valittu tyyppi";
+    // Finnish quotation marks are ”…” on both sides, not the English “…”.
+    ui.purposeNote.textContent =
+      `${base} Tämä kortti näyttää aina kaikki seitsemän käyttötarkoitusta, myös nyt, kun ` +
+      `rajaus on ”${name}” — jotta näet, kuinka suuri sen osuus on koko aineistosta. ` +
+      "Siksi kortin luvut ovat suurempia kuin sivun yläreunan lupamäärä, joka koskee vain " +
+      "rajattua tyyppiä. Valittu käyttötarkoitus on korostettu kuviossa.";
+    return;
+  }
+
   const unclassified = totalCount === null ? 0 : totalCount - classifiedTotal;
   ui.purposeNote.textContent =
     unclassified > 0
