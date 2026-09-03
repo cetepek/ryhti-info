@@ -25,7 +25,8 @@
 //     or main_purpose columns. ~215 bytes/row is the floor, not a target to
 //     tune further.
 
-import { proxyEnabled } from "./api.js?v=2026-08-28a";
+import { proxyEnabled } from "./api.js?v=2026-09-03a";
+import { t } from "./i18n.js?v=2026-09-03a";
 
 const DIRECT_WFS = "https://paikkatiedot.ymparisto.fi/geoserver/ryhti_permit/ows";
 const TYPE_NAME = "ryhti_permit:open_permit_building";
@@ -57,7 +58,7 @@ function wfsURL(params) {
 
 async function fetchText(url, signal) {
   const response = await fetch(url, { signal, headers: { Accept: "text/csv, application/xml" } });
-  if (!response.ok) throw new Error(`WFS palautti virheen ${response.status}.`);
+  if (!response.ok) throw new Error(t.wfsStatus(response.status));
   return response.text();
 }
 
@@ -68,7 +69,7 @@ async function fetchText(url, signal) {
 export async function fetchHits(cqlFilter, signal) {
   const xml = await fetchText(wfsURL({ resultType: "hits", cql_filter: cqlFilter }), signal);
   const match = /numberMatched="(\d+)"/.exec(xml);
-  if (!match) throw new Error("WFS-vastauksesta ei löytynyt numberMatched-arvoa.");
+  if (!match) throw new Error(t.wfsCountMissing);
   return Number(match[1]);
 }
 

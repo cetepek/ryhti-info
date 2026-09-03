@@ -3,7 +3,7 @@
 // live against paikkatiedot.ymparisto.fi by the iOS app's Phase 1 work — this
 // is a faithful port of those verified shapes, not a fresh guess at CQL2.
 
-import { purposeURI, actionTypeURI, statusURI } from "./codelists.js?v=2026-08-28a";
+import { purposeURI, actionTypeURI, statusURI } from "./codelists.js?v=2026-09-03a";
 
 /**
  * Doubles every single quote — the standard SQL/CQL literal-escaping

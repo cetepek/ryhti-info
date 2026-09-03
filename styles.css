@@ -1,5 +1,5 @@
 /* Landing page for the Ryhti app. Standalone by design: it shares the palette
-   token names and values with tilastot/styles.css so the two pages read as one
+   token names and values with assets/statistics.css so the pages read as one
    product, but it carries none of that file's chart machinery. */
 
 :root {

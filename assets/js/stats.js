@@ -18,12 +18,13 @@
 //  * Sample sizes travel with every sample-derived number so a thin sample is
 //    visible rather than hidden behind a confident-looking figure.
 
-import { fetchCount, fetchSample } from "./api.js?v=2026-08-28a";
-import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js?v=2026-08-28a";
-import { runLimited } from "./batcher.js?v=2026-08-28a";
-import { buildCQLFilter, yearRange, monthRange } from "./cql.js?v=2026-08-28a";
-import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js?v=2026-08-28a";
-import { municipalityName } from "./municipalities.js?v=2026-08-28a";
+import { fetchCount, fetchSample } from "./api.js?v=2026-09-03a";
+import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js?v=2026-09-03a";
+import { runLimited } from "./batcher.js?v=2026-09-03a";
+import { buildCQLFilter, yearRange, monthRange } from "./cql.js?v=2026-09-03a";
+import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js?v=2026-09-03a";
+import { municipalityName } from "./municipalities.js?v=2026-09-03a";
+import { t } from "./i18n.js?v=2026-09-03a";
 
 /** How many permits each bucket samples for its median size/storey figures. */
 const SAMPLE_LIMIT = 30;
@@ -34,7 +35,7 @@ const SAMPLE_LIMIT = 30;
  *
  * Sized from measurement, not taste: a full year across the candidate
  * municipalities is ~10k rows (2025) to ~20k rows (2021, the peak), so every
- * single-year view sweeps exactly. "Kaikki vuodet" matches ~985k rows across
+ * single-year view sweeps exactly. The all-years option matches ~985k rows across
  * the same municipalities — ~210MB — which is why the fallback still exists.
  * At ~215 bytes/row, this budget caps a sweep at roughly 5MB.
  */
@@ -192,7 +193,7 @@ export async function loadStatistics(state, options = {}) {
   // The likeliest cause by far is the API refusing browser calls (CORS) or
   // being unreachable — both of which fail every request identically.
   if (failureCount === operations.length) {
-    throw errors.find(Boolean) ?? new Error("Tietojen haku epäonnistui.");
+    throw errors.find(Boolean) ?? new Error(t.loadFailed);
   }
 
   return assemble(results, state, years, plan);
@@ -415,7 +416,7 @@ export async function loadMonthlyComparison(state, year, compareYear, options = 
   });
 
   if (failureCount === operations.length) {
-    throw errors.find(Boolean) ?? new Error("Kuukausivertailun haku epäonnistui.");
+    throw errors.find(Boolean) ?? new Error(t.monthLoadFailed);
   }
 
   // A dropped request leaves null rather than zero. Zero and "we never found
@@ -455,7 +456,7 @@ export async function loadRollingMonths(state, options = {}) {
   });
 
   if (failureCount === operations.length) {
-    throw errors.find(Boolean) ?? new Error("Kuukausisarjan haku epäonnistui.");
+    throw errors.find(Boolean) ?? new Error(t.rollingLoadFailed);
   }
 
   const counts = new Map(results.filter(Boolean).map((r) => [`${r.year}-${r.month}`, r.count]));

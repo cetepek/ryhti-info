@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rakentamislupatilastot</title>
 <meta name="description" content="Tilastoja Suomen avoimesta rakentamislupa-aineistosta (Ryhti-rajapinta).">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../assets/statistics.css">
+<link rel="alternate" hreflang="sv" href="https://ryhti.botit.fi/statistik/">
+<link rel="alternate" hreflang="fi" href="https://ryhti.botit.fi/tilastot/">
 </head>
 <body>
 <header class="page-header">
   <div class="wrap">
+    <p class="lang-switch"><a href="../statistik/" hreflang="sv" lang="sv">På svenska</a></p>
     <h1>Rakentamislupatilastot</h1>
     <p class="lede">
       Tilastoja Suomen avoimesta rakentamislupa-aineistosta. Luvut haetaan suoraan
@@ -245,12 +248,13 @@
 </main>
 
 <!-- The ?v= token is the cache key for the WHOLE module graph, and every
-     import specifier in js/ carries the same one. GitHub Pages serves both
-     the HTML and the modules with max-age=600 and no per-deploy URL change,
-     so without this a returning visitor gets new HTML against a cached old
-     app.js: the new markup renders with nothing wired to it. Bump on any
-     deploy that changes js/ — all specifiers must match. Verify with:
-       grep -ro "?v=[0-9a-z-]*" tilastot | sort -u   (expect one line)  -->
-<script type="module" src="js/app.js?v=2026-08-28a"></script>
+     import specifier in assets/js/ carries the same one, as does the script
+     tag on both language shells. GitHub Pages serves the HTML and the modules
+     with max-age=600 and no per-deploy URL change, so without this a returning
+     visitor gets new HTML against a cached old app.js: the new markup renders
+     with nothing wired to it. Bump on any deploy that changes assets/js/ — all
+     specifiers must match. Verify with:
+       grep -rho "?v=[0-9a-z-]*" assets tilastot statistik | sort -u   (expect one line)  -->
+<script type="module" src="../assets/js/app.js?v=2026-09-03a"></script>
 </body>
 </html>

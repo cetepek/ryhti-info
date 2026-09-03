@@ -5,7 +5,7 @@ import {
   selectableYears,
   completeMonthCount,
   roundToTwoSignificantFigures,
-} from "./stats.js?v=2026-08-28a";
+} from "./stats.js?v=2026-09-03a";
 import {
   renderColumnChart,
   renderBarRows,
@@ -17,10 +17,11 @@ import {
   renderMonthSeriesChart,
   formatNumber,
   formatPercentDelta,
-} from "./charts.js?v=2026-08-28a";
-import { yearRange } from "./cql.js?v=2026-08-28a";
-import { BUILDING_PURPOSES } from "./codelists.js?v=2026-08-28a";
-import { MUNICIPALITY_NAMES } from "./municipalities.js?v=2026-08-28a";
+} from "./charts.js?v=2026-09-03a";
+import { yearRange } from "./cql.js?v=2026-09-03a";
+import { BUILDING_PURPOSES } from "./codelists.js?v=2026-09-03a";
+import { municipalityNames, municipalityName } from "./municipalities.js?v=2026-09-03a";
+import { t, locale, numberLocale } from "./i18n.js?v=2026-09-03a";
 
 const el = (id) => document.getElementById(id);
 
@@ -87,15 +88,6 @@ let lastMonths = null;
 let rollingKey = null;
 let rollingInFlight = null;
 let lastRolling = null;
-const MONTH_NAMES = [
-  "tammikuu", "helmikuu", "maaliskuu", "huhtikuu", "toukokuu", "kesäkuu",
-  "heinäkuu", "elokuu", "syyskuu", "lokakuu", "marraskuu", "joulukuu",
-];
-/** Axis labels: the chart has twelve slots and no room for full month names. */
-const MONTH_NAMES_SHORT = [
-  "tammi", "helmi", "maalis", "huhti", "touko", "kesä",
-  "heinä", "elo", "syys", "loka", "marras", "joulu",
-];
 
 /** Identifies a filter slice, so a cached month render can be matched to it. */
 function stateKey(state, extra = null) {
@@ -113,7 +105,7 @@ function stateKey(state, extra = null) {
  * The card owns its own two years rather than following the page's Vuosi
  * filter. With an explicit picker for each side, a third year arriving from the
  * page filter would just be a third opinion about the same question — and it
- * would make "Kaikki vuodet" mean something the card cannot draw. The pickers
+ * would make the all-years option mean something the card cannot draw. The pickers
  * seed from the page's year on first load and are independent after that.
  */
 function populateMonthYears(seedYear) {
@@ -145,17 +137,17 @@ function syncMonthYearOptions() {
 
 function populateFilters() {
   const years = selectableYears();
-  ui.year.appendChild(new Option("Kaikki vuodet", ""));
+  ui.year.appendChild(new Option(t.allYears, ""));
   for (const year of [...years].reverse()) ui.year.appendChild(new Option(String(year), String(year)));
   // Default to the most recent full year rather than the current one, which is
   // still partial and would read as a collapse in the year-over-year chart.
   ui.year.value = String(years[years.length - 2]);
 
-  ui.municipality.appendChild(new Option("Koko Suomi", ""));
-  const sorted = Object.entries(MUNICIPALITY_NAMES).sort((a, b) => a[1].localeCompare(b[1], "fi"));
+  ui.municipality.appendChild(new Option(t.wholeCountry, ""));
+  const sorted = Object.entries(municipalityNames()).sort((a, b) => a[1].localeCompare(b[1], locale));
   for (const [code, name] of sorted) ui.municipality.appendChild(new Option(name, code));
 
-  ui.purpose.appendChild(new Option("Kaikki käyttötarkoitukset", ""));
+  ui.purpose.appendChild(new Option(t.allPurposes, ""));
   for (const p of BUILDING_PURPOSES) ui.purpose.appendChild(new Option(p.shortName, p.code));
 }
 
@@ -185,7 +177,7 @@ function setBusy(isBusy) {
 
   if (isBusy) {
     ui.progressFill.style.width = "0%";
-    ui.statusText.textContent = "Haetaan…";
+    ui.statusText.textContent = t.loading;
   }
 }
 
@@ -194,7 +186,7 @@ function showError(error) {
   ui.error.innerHTML = "";
 
   const message = document.createElement("p");
-  message.textContent = error?.message ?? "Tietojen haku epäonnistui.";
+  message.textContent = error?.message ?? t.loadFailed;
   ui.error.appendChild(message);
 }
 
@@ -234,7 +226,7 @@ async function refresh() {
 
 /** "n = 24" style sample-size note, or an explicit "no data" when the sample was empty. */
 function sampleNote(sampleSize) {
-  return sampleSize > 0 ? `Mediaani, otos n = ${formatNumber(sampleSize)}` : "Ei kerrosalatietoja otoksessa";
+  return sampleSize > 0 ? t.medianSample(formatNumber(sampleSize)) : t.noAreaInSample;
 }
 
 /**
@@ -248,11 +240,11 @@ function renderScopeChips(state) {
   if (!ui.scopeChips) return;
   ui.scopeChips.innerHTML = "";
   const chips = [
-    state.dateRange ? String(state.dateRange.start.getUTCFullYear()) : "Kaikki vuodet",
-    state.municipalities.length ? MUNICIPALITY_NAMES[state.municipalities[0]] : "Koko Suomi",
+    state.dateRange ? String(state.dateRange.start.getUTCFullYear()) : t.allYears,
+    state.municipalities.length ? municipalityName(state.municipalities[0]) : t.wholeCountry,
     state.purposes.length
       ? BUILDING_PURPOSES.find((p) => p.code === state.purposes[0])?.shortName
-      : "Kaikki käyttötarkoitukset",
+      : t.allPurposes,
   ];
   for (const text of chips.filter(Boolean)) {
     const chip = document.createElement("span");
@@ -266,7 +258,7 @@ function renderScopeChips(state) {
  * Ring slot for a building purpose, fixed by its CODE and never by its rank.
  *
  * This is the whole reason the mapping lives here rather than being computed
- * from the sorted breakdown: change the municipality filter and Pientalo may
+ * from the sorted breakdown: change the municipality filter and detached houses may
  * stop being the biggest purpose, but it must keep its color. A ring that
  * repaints itself when the ordering shifts is unreadable across filters.
  *
@@ -280,12 +272,12 @@ function renderScopeChips(state) {
  */
 const purposeSlot = (code) => BUILDING_PURPOSES.findIndex((p) => p.code === code) + 1;
 
-/** Share of a whole, as a Finnish percentage. One decimal below 10 %, none above. */
+/** Share of a whole, as a percentage. One decimal below 10 %, none above. */
 function shareLabel(value, total) {
   if (!total || !Number.isFinite(value)) return "–";
   const pct = (value / total) * 100;
   const decimals = pct < 10 ? 1 : 0;
-  return `${pct.toLocaleString("fi-FI", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} %`;
+  return `${pct.toLocaleString(numberLocale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} %`;
 }
 
 /**
@@ -332,8 +324,8 @@ function render(result, state) {
     result.typicalStoreys === null ? "–" : formatNumber(result.typicalStoreys);
   ui.typicalStoreysNote.textContent =
     result.typicalStoreysSampleSize > 0
-      ? `Mediaani, otos n = ${formatNumber(result.typicalStoreysSampleSize)}`
-      : "Ei kerroslukutietoja otoksessa";
+      ? t.medianSample(formatNumber(result.typicalStoreysSampleSize))
+      : t.noStoreysInSample;
 
   renderColumnChart(ui.chartYears, result.yearBuckets);
   const deltas = yearOverYear(result.yearBuckets);
@@ -346,13 +338,13 @@ function render(result, state) {
   );
   renderTable(
     ui.tableMedianArea,
-    ["Vuosi", "Mediaanikerrosala", "Otoskoko"],
+    [t.colYear, t.colMedianArea, t.colSampleSize],
     result.yearBuckets.map((b) => [
       String(b.year),
       b.medianGrossFloorArea === null ? "–" : `${formatNumber(b.medianGrossFloorArea)} m²`,
       // The sample size travels with every sample-derived figure, so a thin year
       // is visible instead of hiding behind a confident-looking median.
-      `n = ${formatNumber(b.grossFloorAreas.length)}`,
+      t.sampleSizeCell(formatNumber(b.grossFloorAreas.length)),
     ])
   );
 
@@ -372,7 +364,7 @@ function render(result, state) {
       value: result.purposeBreakdown.find((p) => p.code === purpose.code)?.count ?? 0,
       slot: purposeSlot(purpose.code),
     })),
-    { centerLabel: "luokiteltua lupaa", unitLabel: "lupaa", legendValues: false }
+    { centerLabel: t.classifiedPermits, unitLabel: t.permitsUnit, legendValues: false }
   );
 
   // Short name on the chart (the official name wraps to three lines and pushes
@@ -387,7 +379,7 @@ function render(result, state) {
   );
   renderTable(
     ui.tablePurposes,
-    ["Käyttötarkoitus", "Lupia", "Osuus"],
+    [t.colPurpose, t.colPermits, t.colShare],
     result.purposeBreakdown.map((p) => [
       p.name,
       formatNumber(p.count),
@@ -412,7 +404,7 @@ function render(result, state) {
   );
   renderTable(
     ui.tableActionTypes,
-    ["Toimenpide", "Lupia", "Osuus"],
+    [t.colAction, t.colPermits, t.colShare],
     actionTypes.map((a) => [a.name, formatNumber(a.count), shareLabel(a.count, result.totalCount)])
   );
 
@@ -422,7 +414,7 @@ function render(result, state) {
   );
   renderTable(
     ui.tableMuniCount,
-    ["Kunta", "Lupia"],
+    [t.colMunicipality, t.colPermits],
     result.topMunicipalitiesByCount.map((m) => [m.name, formatNumber(m.count)])
   );
 
@@ -439,40 +431,33 @@ function render(result, state) {
         ? `${formatNumber(Math.round(m.estimatedTotalGrossFloorArea))} m²`
         : `~${formatNumber(roundToTwoSignificantFigures(m.estimatedTotalGrossFloorArea))} m²`,
       note: m.exact
-        ? `tarkka summa · kerrosala ilmoitettu ${formatNumber(m.sampleSize)}/${formatNumber(m.count)} luvassa`
-        : `arvio, otos n = ${formatNumber(m.sampleSize)}`,
+        ? t.exactRowNote(formatNumber(m.sampleSize), formatNumber(m.count))
+        : t.estimateRowNote(formatNumber(m.sampleSize)),
     })),
     { hue: "orange" }
   );
 
   renderTable(
     ui.tableMuniArea,
-    ["Kunta", "Kokonaiskerrosala", "Lupia", "Tarkkuus"],
+    [t.colMunicipality, t.colTotalArea, t.colPermits, t.colAccuracy],
     result.topMunicipalitiesByFloorArea.map((m) => [
       m.name,
       m.exact
         ? `${formatNumber(Math.round(m.estimatedTotalGrossFloorArea))} m²`
         : `~${formatNumber(roundToTwoSignificantFigures(m.estimatedTotalGrossFloorArea))} m²`,
       formatNumber(m.count),
-      m.exact ? `tarkka (${formatNumber(m.sampleSize)} kerrosalatietoa)` : `arvio (otos n = ${formatNumber(m.sampleSize)})`,
+      m.exact ? t.exactAccuracy(formatNumber(m.sampleSize)) : t.estimateAccuracy(formatNumber(m.sampleSize)),
     ])
   );
 
   // The caption has to track which method actually ran, or an exact figure gets
   // read as an estimate (and, worse, an estimate gets read as exact).
   if (result.municipalityDataIncomplete) {
-    ui.muniAreaNote.textContent =
-      "Kuntakohtaisia lukuja ei voitu laskea, koska osa hausta epäonnistui. " +
-      "Puutteellisia summia ei näytetä, koska ne jäisivät todellista pienemmiksi. Yritä uudelleen.";
+    ui.muniAreaNote.textContent = t.muniAreaIncomplete;
     return;
   }
 
-  ui.muniAreaNote.textContent = result.municipalityFiguresAreExact
-    ? "Kaikkien rajaukseen osuvien lupien kerrosalat on laskettu yhteen. " +
-      "Rivillä näkyy, kuinka monessa luvassa kerrosala on ilmoitettu."
-    : "Arvio: otoksen keskimääräinen kerrosala × lupien määrä. Rajaus on niin laaja, ettei " +
-      "tarkkaa summaa lasketa, joten luku voi poiketa todellisesta jopa kaksinkertaisesti " +
-      "kumpaan suuntaan tahansa.";
+  ui.muniAreaNote.textContent = result.municipalityFiguresAreExact ? t.muniAreaExact : t.muniAreaEstimate;
 }
 
 /**
@@ -519,7 +504,7 @@ async function loadRolling(state) {
   const controller = new AbortController();
   rollingInFlight = controller;
 
-  setRollingStatus("Haetaan…");
+  setRollingStatus(t.loading);
   try {
     const result = await loadRollingMonths(state, {
       signal: controller.signal,
@@ -533,7 +518,7 @@ async function loadRolling(state) {
     renderRolling(result);
   } catch (error) {
     if (error?.name === "AbortError" || controller.signal.aborted) return;
-    setRollingStatus(error?.message ?? "Kuukausisarjan haku epäonnistui.");
+    setRollingStatus(error?.message ?? t.rollingLoadFailed);
   } finally {
     if (rollingInFlight === controller) rollingInFlight = null;
   }
@@ -544,15 +529,15 @@ function renderRolling(result) {
   setRollingStatus(null);
   const rows = result.months.map((m) => ({
     ...m,
-    label: MONTH_NAMES_SHORT[m.month - 1],
+    label: t.monthNamesShort[m.month - 1],
   }));
 
   renderMonthSeriesChart(ui.chartRolling, rows);
   renderTable(
     ui.tableRolling,
-    ["Kuukausi", "Lupia"],
+    [t.colMonth, t.colPermits],
     rows.map((m) => [
-      `${MONTH_NAMES[m.month - 1]} ${m.year}${m.partial ? " (kesken)" : ""}`,
+      `${t.monthNames[m.month - 1]} ${m.year}${m.partial ? t.partialSuffix : ""}`,
       formatNumber(m.count),
     ])
   );
@@ -576,7 +561,7 @@ async function loadMonths(state) {
   const controller = new AbortController();
   monthInFlight = controller;
 
-  setMonthStatus("Haetaan…");
+  setMonthStatus(t.loading);
   try {
     const result = await loadMonthlyComparison(state, year, compareYear, {
       signal: controller.signal,
@@ -590,7 +575,7 @@ async function loadMonths(state) {
     renderMonths(result);
   } catch (error) {
     if (error?.name === "AbortError" || controller.signal.aborted) return;
-    setMonthStatus(error?.message ?? "Kuukausivertailun haku epäonnistui.");
+    setMonthStatus(error?.message ?? t.monthLoadFailed);
   } finally {
     if (monthInFlight === controller) monthInFlight = null;
   }
@@ -604,9 +589,7 @@ function renderMonths(result) {
     // Name the year that actually ran out of finished months — with a free
     // choice of comparison year it can be either side of the pair.
     const short = completeMonthCount(year) <= completeMonthCount(compareYear) ? year : compareYear;
-    setMonthStatus(
-      `Vuodelta ${short} ei ole vielä yhtään päättynyttä kuukautta, joten vertailtavaa ei ole.`
-    );
+    setMonthStatus(t.noCompleteMonths(short));
     ui.chartMonths.innerHTML = "";
     ui.tableMonths.innerHTML = "";
     return;
@@ -616,7 +599,7 @@ function renderMonths(result) {
   renderGroupedColumnChart(
     ui.chartMonths,
     months.map((m) => ({
-      label: MONTH_NAMES_SHORT[m.month - 1],
+      label: t.monthNamesShort[m.month - 1],
       current: m.current,
       previous: m.previous,
     })),
@@ -625,9 +608,9 @@ function renderMonths(result) {
 
   renderTable(
     ui.tableMonths,
-    ["Kuukausi", String(year), String(compareYear), "Muutos"],
+    [t.colMonth, String(year), String(compareYear), t.colChange],
     months.map((m) => [
-      MONTH_NAMES[m.month - 1],
+      t.monthNames[m.month - 1],
       formatNumber(m.current),
       formatNumber(m.previous),
       monthDeltaLabel(m.current, m.previous),
@@ -649,7 +632,7 @@ function monthDeltaLabel(current, previous) {
 function renderYearTable(buckets, deltas) {
   renderTable(
     ui.tableYears,
-    ["Vuosi", "Lupia", "Muutos", "Mediaanikerrosala"],
+    [t.colYear, t.colPermits, t.colChange, t.colMedianArea],
     buckets.map((b, index) => [
       String(b.year),
       formatNumber(b.count),
@@ -668,13 +651,11 @@ function renderYearTable(buckets, deltas) {
  */
 function renderPurposeNote(totalCount, classifiedTotal) {
   if (!ui.purposeNote) return;
-  const base = "Lupien määrä rakennuksen pääkäyttötarkoituksen mukaan.";
   const unclassified = totalCount === null ? 0 : totalCount - classifiedTotal;
   ui.purposeNote.textContent =
     unclassified > 0
-      ? `${base} Osuudet lasketaan luokitelluista luvista: ${formatNumber(unclassified)} luvalta ` +
-        "pääkäyttötarkoitus puuttuu, eivätkä ne ole mukana jakaumassa."
-      : base;
+      ? `${t.purposeNote} ${t.purposeUnclassified(formatNumber(unclassified))}`
+      : t.purposeNote;
 }
 
 // The time-axis SVG charts are laid out in real pixels, so they must be

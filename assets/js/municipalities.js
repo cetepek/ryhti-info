@@ -1,5 +1,9 @@
-// Generated from Ryhti/Core/Query/MunicipalityNames.swift — do not hand-edit.
-// Original source: koodistot.suomi.fi kunta_1_20240101 registry (309 Finnish municipalities).
+// Generated from the koodistot.suomi.fi kunta_1_20240101 registry (309 Finnish
+// municipalities) — do not hand-edit. Both name columns are the registry's own
+// prefLabel, so the Swedish names are the official ones rather than
+// translations of the Finnish.
+import { locale } from "./i18n.js?v=2026-09-03a";
+
 export const MUNICIPALITY_NAMES = {
   "005": "Alajärvi",
   "009": "Alavieska",
@@ -312,6 +316,140 @@ export const MUNICIPALITY_NAMES = {
   "992": "Äänekoski"
 };
 
+/**
+ * Municipalities whose official Swedish name differs from the Finnish one.
+ *
+ * Only 114 of the 309 do. For the rest the registry repeats the Finnish name
+ * verbatim, so listing all 309 again would be 195 duplicate lines hiding the 114
+ * that carry information.
+ */
+const SWEDISH_NAMES = {
+  "010": "Alavo",
+  "020": "Ackas",
+  "047": "Enontekis",
+  "049": "Esbo",
+  "051": "Euraåminne",
+  "072": "Karlö",
+  "074": "Halso",
+  "075": "Fredrikshamn",
+  "078": "Hangö",
+  "081": "Gustav Adolfs",
+  "091": "Helsingfors",
+  "092": "Vanda",
+  "102": "Vittis",
+  "106": "Hyvinge",
+  "108": "Tavastkyro",
+  "109": "Tavastehus",
+  "139": "Ijo",
+  "140": "Idensalmi",
+  "142": "Itis",
+  "143": "Ikalis",
+  "145": "Ilmola",
+  "146": "Ilomants",
+  "148": "Enare",
+  "149": "Ingå",
+  "151": "Storå",
+  "152": "Storkyro",
+  "169": "Jockis",
+  "171": "Jorois",
+  "176": "Juga",
+  "186": "Träskända",
+  "202": "S:t Karins",
+  "205": "Kajana",
+  "218": "Bötom",
+  "224": "Högfors",
+  "231": "Kaskö",
+  "235": "Grankulla",
+  "236": "Kaustby",
+  "245": "Kervo",
+  "249": "Keuru",
+  "257": "Kyrkslätt",
+  "260": "Kides",
+  "271": "Kumo",
+  "272": "Karleby",
+  "276": "Kontiolax",
+  "284": "Koskis",
+  "287": "Kristinestad",
+  "288": "Kronoby",
+  "291": "Kuhmois",
+  "304": "Gustavs",
+  "322": "Kimitoön",
+  "398": "Lahtis",
+  "399": "Laihela",
+  "400": "Letala",
+  "405": "Villmanstrand",
+  "407": "Lappträsk",
+  "408": "Lappo",
+  "410": "Laukas",
+  "423": "Lundo",
+  "425": "Limingo",
+  "426": "Libelits",
+  "434": "Lovisa",
+  "440": "Larsmo",
+  "444": "Lojo",
+  "445": "Pargas",
+  "475": "Malax",
+  "478": "Mariehamn",
+  "480": "S:t Mårtens",
+  "484": "Sastmola",
+  "491": "S:t Michel",
+  "499": "Korsholm",
+  "503": "Virmo",
+  "504": "Mörskom",
+  "529": "Nådendal",
+  "538": "Nousis",
+  "545": "Närpes",
+  "564": "Uleåborg",
+  "577": "Pemar",
+  "598": "Jakobstad",
+  "599": "Pedersöre",
+  "604": "Birkala",
+  "608": "Påmark",
+  "609": "Björneborg",
+  "611": "Borgnäs",
+  "624": "Pyttis",
+  "638": "Borgå",
+  "678": "Brahestad",
+  "680": "Reso",
+  "684": "Raumo",
+  "700": "Ruokolax",
+  "710": "Raseborg",
+  "738": "Sagu",
+  "740": "Nyslott",
+  "747": "Siikais",
+  "753": "Sibbo",
+  "755": "Sjundeå",
+  "833": "Tövsala",
+  "837": "Tammerfors",
+  "846": "Östermark",
+  "851": "Torneå",
+  "853": "Åbo",
+  "858": "Tusby",
+  "886": "Ulvsby",
+  "893": "Nykarleby",
+  "895": "Nystad",
+  "905": "Vasa",
+  "918": "Vemo",
+  "924": "Vetil",
+  "927": "Vichtis",
+  "934": "Vindala",
+  "935": "Vederlax",
+  "936": "Virdois",
+  "946": "Vörå",
+  "976": "Övertorneå",
+  "989": "Etseri"
+};
+
+const NAMES_BY_LOCALE = {
+  fi: MUNICIPALITY_NAMES,
+  sv: { ...MUNICIPALITY_NAMES, ...SWEDISH_NAMES },
+};
+
+/** The whole table in the page's language, for building the picker. */
+export function municipalityNames() {
+  return NAMES_BY_LOCALE[locale];
+}
+
 export function municipalityName(code) {
-  return MUNICIPALITY_NAMES[code] ?? null;
+  return NAMES_BY_LOCALE[locale][code] ?? null;
 }
