@@ -359,6 +359,7 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
    zero rather than floating. */
 .bar-row-fill { display: block; height: 100%; background: var(--series-blue); border-radius: 0 4px 4px 0; }
 .hue-orange .bar-row-fill { background: var(--series-orange); }
+.hue-aqua .bar-row-fill { background: var(--series-aqua); }
 .bar-row-value { font-size: 0.87rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar-row-note { grid-column: 2 / -1; margin-top: -4px; font-size: 0.72rem; color: var(--text-muted); }
 

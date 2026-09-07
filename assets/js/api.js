@@ -1,7 +1,7 @@
 // Browser-side client for the Ryhti open building-permit OGC API - Features
 // endpoint. Mirrors Ryhti/Core/Networking/RyhtiAPIClient.swift.
 
-import { t } from "./i18n.js?v=2026-09-03a";
+import { t } from "./i18n.js?v=2026-09-07a";
 
 const DIRECT_BASE =
   "https://paikkatiedot.ymparisto.fi/geoserver/ryhti_permit/ogc/features/v1/collections";

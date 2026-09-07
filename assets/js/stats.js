@@ -18,13 +18,13 @@
 //  * Sample sizes travel with every sample-derived number so a thin sample is
 //    visible rather than hidden behind a confident-looking figure.
 
-import { fetchCount, fetchSample } from "./api.js?v=2026-09-03a";
-import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js?v=2026-09-03a";
-import { runLimited } from "./batcher.js?v=2026-09-03a";
-import { buildCQLFilter, yearRange, monthRange } from "./cql.js?v=2026-09-03a";
-import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js?v=2026-09-03a";
-import { municipalityName } from "./municipalities.js?v=2026-09-03a";
-import { t } from "./i18n.js?v=2026-09-03a";
+import { fetchCount, fetchSample } from "./api.js?v=2026-09-07a";
+import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js?v=2026-09-07a";
+import { runLimited } from "./batcher.js?v=2026-09-07a";
+import { buildCQLFilter, yearRange, monthRange } from "./cql.js?v=2026-09-07a";
+import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js?v=2026-09-07a";
+import { municipalityName } from "./municipalities.js?v=2026-09-07a";
+import { t } from "./i18n.js?v=2026-09-07a";
 
 /** How many permits each bucket samples for its median size/storey figures. */
 const SAMPLE_LIMIT = 30;
@@ -96,6 +96,7 @@ export async function loadStatistics(state, options = {}) {
   const { onProgress, signal } = options;
   const years = selectableYears();
   const baseFilter = buildCQLFilter(state);
+  const selectedYear = matchingYear(state.dateRange, years);
 
   // One flat operation list — total, per-purpose, per-year, per-municipality.
   const operations = [];
@@ -186,6 +187,43 @@ export async function loadStatistics(state, options = {}) {
     }
   }
 
+  // New apartments by municipality — ported from Ryhti/Features/Statistics
+  // StatisticsViewModel.swift's loadNewApartmentsByMunicipality (Phase 17).
+  // Gated on a single year being selected, same as the app: an "all years"
+  // sweep across every candidate municipality would be a much larger, slower
+  // request for a figure the gate gives up entirely rather than degrade.
+  // Always exact, never sampled — new-building permit volume per year across
+  // the 34 candidate municipalities never approaches a sampling threshold
+  // (confirmed live against real data during the app's own Phase 17 work:
+  // a few thousand rows a year even in the largest municipality).
+  let apartmentsPlan = null;
+  if (selectedYear !== null) {
+    const apartmentsFilter = buildCQLFilter({
+      ...state,
+      municipalities: CANDIDATE_MUNICIPALITY_CODES,
+      actionTypes: ["01"],
+    });
+    try {
+      const expected = await fetchHits(apartmentsFilter, signal);
+      const pages = pageCount(expected);
+      apartmentsPlan = { filter: apartmentsFilter, expected, pages };
+      for (let page = 0; page < pages; page++) {
+        const startIndex = page * MAX_ROWS_PER_PAGE;
+        operations.push(async () => {
+          const rows = await fetchPage(apartmentsFilter, {
+            columns: ["municipality_number", "apartment_count"],
+            startIndex,
+            signal,
+          });
+          return { kind: "apartmentsSweep", rows };
+        });
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      apartmentsPlan = { failed: true };
+    }
+  }
+
   const { results, errors, failureCount } = await runLimited(operations, { maxConcurrency: 8, onProgress, signal });
 
   // A dashboard of dashes is indistinguishable from "this filter matches
@@ -196,7 +234,7 @@ export async function loadStatistics(state, options = {}) {
     throw errors.find(Boolean) ?? new Error(t.loadFailed);
   }
 
-  return assemble(results, state, years, plan);
+  return assemble(results, state, years, plan, apartmentsPlan);
 }
 
 /**
@@ -258,7 +296,29 @@ function aggregateSweep(rows) {
   }));
 }
 
-function assemble(results, state, years, plan) {
+/** Folds swept CSV rows into per-municipality exact apartment-count sums. */
+function aggregateApartmentsSweep(rows) {
+  const byCode = new Map();
+  for (const row of rows) {
+    const code = row.municipality_number;
+    if (!code) continue;
+    const name = municipalityName(code);
+    if (!name) continue;
+    let entry = byCode.get(code);
+    if (!entry) {
+      entry = { code, name, apartmentCount: 0 };
+      byCode.set(code, entry);
+    }
+    const raw = row.apartment_count;
+    if (raw !== "" && raw !== undefined && raw !== null) {
+      const value = Number(raw);
+      if (Number.isFinite(value)) entry.apartmentCount += value;
+    }
+  }
+  return [...byCode.values()];
+}
+
+function assemble(results, state, years, plan, apartmentsPlan) {
   const rows = results.filter(Boolean);
   const totalRow = rows.find((r) => r.kind === "total");
 
@@ -314,6 +374,29 @@ function assemble(results, state, years, plan) {
     ? (sweepComplete ? aggregateSweep(sweptRows) : [])
     : rows.filter((r) => r.kind === "municipality");
 
+  // Same completeness discipline as the floor-area sweep above: a dropped
+  // page must suppress the whole section rather than render a silently
+  // short sum.
+  let newApartmentsByMunicipality = [];
+  let apartmentsDataIncomplete = false;
+  if (selectedYear !== null) {
+    if (apartmentsPlan && !apartmentsPlan.failed) {
+      const apartmentsPages = rows.filter((r) => r.kind === "apartmentsSweep");
+      const apartmentsRows = apartmentsPages.flatMap((p) => p.rows);
+      const apartmentsComplete =
+        apartmentsPages.length === apartmentsPlan.pages && apartmentsRows.length === apartmentsPlan.expected;
+      if (apartmentsComplete) {
+        newApartmentsByMunicipality = aggregateApartmentsSweep(apartmentsRows)
+          .sort((a, b) => b.apartmentCount - a.apartmentCount)
+          .slice(0, 10);
+      } else {
+        apartmentsDataIncomplete = true;
+      }
+    } else {
+      apartmentsDataIncomplete = true;
+    }
+  }
+
   return {
     totalCount: totalRow ? totalRow.count : null,
     typicalGrossFloorArea: median(pooledAreas),
@@ -330,6 +413,8 @@ function assemble(results, state, years, plan) {
       .filter((m) => m.estimatedTotalGrossFloorArea !== null)
       .sort((a, b) => b.estimatedTotalGrossFloorArea - a.estimatedTotalGrossFloorArea)
       .slice(0, 10),
+    newApartmentsByMunicipality,
+    apartmentsDataIncomplete,
     selectedYear,
   };
 }

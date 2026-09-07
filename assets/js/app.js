@@ -5,7 +5,7 @@ import {
   selectableYears,
   completeMonthCount,
   roundToTwoSignificantFigures,
-} from "./stats.js?v=2026-09-03a";
+} from "./stats.js?v=2026-09-07a";
 import {
   renderColumnChart,
   renderBarRows,
@@ -17,11 +17,11 @@ import {
   renderMonthSeriesChart,
   formatNumber,
   formatPercentDelta,
-} from "./charts.js?v=2026-09-03a";
-import { yearRange } from "./cql.js?v=2026-09-03a";
-import { BUILDING_PURPOSES } from "./codelists.js?v=2026-09-03a";
-import { municipalityNames, municipalityName } from "./municipalities.js?v=2026-09-03a";
-import { t, locale, numberLocale } from "./i18n.js?v=2026-09-03a";
+} from "./charts.js?v=2026-09-07a";
+import { yearRange } from "./cql.js?v=2026-09-07a";
+import { BUILDING_PURPOSES } from "./codelists.js?v=2026-09-07a";
+import { municipalityNames, municipalityName } from "./municipalities.js?v=2026-09-07a";
+import { t, locale, numberLocale } from "./i18n.js?v=2026-09-07a";
 
 const el = (id) => document.getElementById(id);
 
@@ -63,10 +63,13 @@ const ui = {
   chartMuniCount: el("chart-muni-count"),
   chartMuniArea: el("chart-muni-area"),
   muniAreaNote: el("muni-area-note"),
+  chartMuniApartments: el("chart-muni-apartments"),
+  muniApartmentsNote: el("muni-apartments-note"),
   results: el("results"),
   tablePurposes: el("table-purposes"),
   tableMuniCount: el("table-muni-count"),
   tableMuniArea: el("table-muni-area"),
+  tableMuniApartments: el("table-muni-apartments"),
   scopeChips: el("scope-chips"),
 };
 
@@ -454,10 +457,49 @@ function render(result, state) {
   // read as an estimate (and, worse, an estimate gets read as exact).
   if (result.municipalityDataIncomplete) {
     ui.muniAreaNote.textContent = t.muniAreaIncomplete;
+  } else {
+    ui.muniAreaNote.textContent = result.municipalityFiguresAreExact ? t.muniAreaExact : t.muniAreaEstimate;
+  }
+
+  renderApartmentsSection(result);
+}
+
+/**
+ * New apartments by municipality (ported from the iOS app's Phase 17). Gated
+ * on a single year being selected — the chart and table are left empty and
+ * the note explains why, exactly like the app's own gate message, rather
+ * than rendering an empty-looking "no data" bar list.
+ */
+function renderApartmentsSection(result) {
+  if (!ui.chartMuniApartments) return;
+
+  if (result.selectedYear === null) {
+    ui.chartMuniApartments.innerHTML = "";
+    if (ui.tableMuniApartments) ui.tableMuniApartments.innerHTML = "";
+    ui.muniApartmentsNote.textContent = t.muniApartmentsGate;
     return;
   }
 
-  ui.muniAreaNote.textContent = result.municipalityFiguresAreExact ? t.muniAreaExact : t.muniAreaEstimate;
+  if (result.apartmentsDataIncomplete) {
+    ui.chartMuniApartments.innerHTML = "";
+    if (ui.tableMuniApartments) ui.tableMuniApartments.innerHTML = "";
+    ui.muniApartmentsNote.textContent = t.muniApartmentsIncomplete;
+    return;
+  }
+
+  renderBarRows(
+    ui.chartMuniApartments,
+    result.newApartmentsByMunicipality.map((m) => ({ label: m.name, value: m.apartmentCount })),
+    { hue: "aqua" }
+  );
+  if (ui.tableMuniApartments) {
+    renderTable(
+      ui.tableMuniApartments,
+      [t.colMunicipality, t.colApartments],
+      result.newApartmentsByMunicipality.map((m) => [m.name, formatNumber(m.apartmentCount)])
+    );
+  }
+  ui.muniApartmentsNote.textContent = t.muniApartmentsNote;
 }
 
 /**

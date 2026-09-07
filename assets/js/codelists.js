@@ -2,7 +2,7 @@
 // Codes come from the real koodistot.suomi.fi registry, not guessed — keep the
 // raw code + URI shape identical to the iOS app so both hit the same API rows.
 
-import { locale } from "./i18n.js?v=2026-09-03a";
+import { locale } from "./i18n.js?v=2026-09-07a";
 
 const PURPOSE_BASE = "http://uri.suomi.fi/codelist/rytj/avoin_rakennusluokitus/code/";
 const ACTION_BASE = "http://uri.suomi.fi/codelist/rytj/Rakentamistoimenpide/code/";

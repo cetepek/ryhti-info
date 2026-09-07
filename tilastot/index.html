@@ -220,6 +220,18 @@
         <div id="table-muni-area"></div>
       </details>
     </section>
+
+    <section class="card" aria-labelledby="muni-apartments-heading">
+      <div class="card-head">
+        <h2 id="muni-apartments-heading" class="section-title">Uudisrakennuslupien asunnot kunnittain</h2>
+        <p class="section-note" id="muni-apartments-note">Valitse yksittäinen vuosi nähdäksesi uudisrakennuslupien asunnot kunnittain.</p>
+      </div>
+      <div id="chart-muni-apartments" class="chart"></div>
+      <details class="table-view">
+        <summary>Näytä taulukkona</summary>
+        <div id="table-muni-apartments"></div>
+      </details>
+    </section>
   </div>
 
   <section class="card methodology" aria-labelledby="method-heading">
@@ -234,6 +246,7 @@
       <li><strong>Rullaava 12 kuukauden jakso ei seuraa vuosirajausta.</strong> Se päättyy aina kuluvaan kuukauteen, joten se vastaa kysymykseen ”miltä tilanne näyttää juuri nyt”. Kuluva kuukausi näytetään viivoitettuna: se on kesken, joten sen palkki ei ole vertailukelpoinen päättyneiden kuukausien kanssa.</li>
       <li><strong>Kuukausivertailu ladataan erikseen.</strong> Se maksaa enimmillään 24 kyselyä, joten se haetaan vasta kun osio avataan. Luvut ovat tarkkoja osumamääriä, ja muut rajaukset ovat voimassa myös siinä.</li>
       <li><strong>Kuntavertailu kattaa 34 kuntaa.</strong> Kaikkien 309 kunnan läpikäynti vaatisi satoja lisäkutsuja jokaisella latauksella.</li>
+      <li><strong>Uudisrakennuslupien asunnot ovat aina tarkka luku.</strong> Luku kertoo luvitettujen asuntojen määrän, ei valmistuneiden. Se lasketaan summaamalla jokaisen uudisrakennusluvan asuntomäärä valitulta vuodelta — otantaa ei tarvita, koska uudisrakennuslupia on vuositasolla vain muutama tuhat suurimmassakin kunnassa.</li>
       <li><strong>Vuosimuutos on tarkka, mediaanikerrosalan kehitys ei.</strong> Muutosprosentit lasketaan rajapinnan palauttamista tarkoista osumamääristä. Vuosittainen mediaanikerrosala sen sijaan tulee kunkin vuoden enintään 30 luvan otoksesta, joten se kuvaa suuntaa eikä tarkkaa tasoa.</li>
       <li><strong>Osuudet lasketaan luokitelluista luvista.</strong> Jakauma kattaa vain ne luvat, joille pääkäyttötarkoitus on ilmoitettu, ja ne jakautuvat seitsemään luokkaan. Ilman käyttötarkoitusta jääneet luvat eivät ole mukana jakaumassa, ja niiden määrä mainitaan käyttötarkoituskortissa.</li>
       <li><strong>Käyttötarkoituksen väri on kiinteä.</strong> Väri seuraa käyttötarkoitusta eikä sen sijoitusta, joten sama rakennustyyppi on samanvärinen rajauksesta toiseen. Värit on valittu niin, että vierekkäiset sektorit erottuvat toisistaan myös yleisimmillä värinäön poikkeamilla — väri ei silti ole ainoa tunniste, vaan jokainen sektori on nimetty selitteessä ja taulukossa.</li>
@@ -255,6 +268,6 @@
      with nothing wired to it. Bump on any deploy that changes assets/js/ — all
      specifiers must match. Verify with:
        grep -rho "?v=[0-9a-z-]*" assets tilastot statistik | sort -u   (expect one line)  -->
-<script type="module" src="../assets/js/app.js?v=2026-09-03a"></script>
+<script type="module" src="../assets/js/app.js?v=2026-09-07a"></script>
 </body>
 </html>

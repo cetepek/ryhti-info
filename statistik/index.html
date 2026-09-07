@@ -223,6 +223,18 @@
         <div id="table-muni-area"></div>
       </details>
     </section>
+
+    <section class="card" aria-labelledby="muni-apartments-heading">
+      <div class="card-head">
+        <h2 id="muni-apartments-heading" class="section-title">Bostäder i nybyggnadslov per kommun</h2>
+        <p class="section-note" id="muni-apartments-note">Välj ett enskilt år för att se bostäder i nybyggnadslov per kommun.</p>
+      </div>
+      <div id="chart-muni-apartments" class="chart"></div>
+      <details class="table-view">
+        <summary>Visa som tabell</summary>
+        <div id="table-muni-apartments"></div>
+      </details>
+    </section>
   </div>
 
   <section class="card methodology" aria-labelledby="method-heading">
@@ -237,6 +249,7 @@
       <li><strong>Den rullande 12-månadersperioden följer inte årsavgränsningen.</strong> Den slutar alltid vid den innevarande månaden och svarar därför på frågan ”hur ser läget ut just nu”. Den innevarande månaden visas streckad: den pågår, så dess stapel är inte jämförbar med de avslutade månadernas.</li>
       <li><strong>Månadsjämförelsen laddas separat.</strong> Den kostar som mest 24 förfrågningar och hämtas därför först när avsnittet öppnas. Talen är exakta träffantal, och de övriga avgränsningarna gäller också där.</li>
       <li><strong>Kommunjämförelsen omfattar 34 kommuner.</strong> Att gå igenom alla 309 kommuner skulle kräva hundratals extra anrop vid varje laddning.</li>
+      <li><strong>Bostäder i nybyggnadslov är alltid ett exakt tal.</strong> Talet visar antalet beviljade bostäder, inte antalet färdigställda. Det beräknas genom att summera antalet bostäder i varje nybyggnadslov för det valda året — inget urval behövs, eftersom det per år finns endast några tusen nybyggnadslov även i den största kommunen.</li>
       <li><strong>Årsförändringen är exakt, medianvåningsytans utveckling är det inte.</strong> Förändringsprocenten beräknas på de exakta träffantal gränssnittet returnerar. Den årliga medianvåningsytan kommer däremot från varje års urval på högst 30 tillstånd och beskriver alltså en riktning, inte en exakt nivå.</li>
       <li><strong>Andelarna beräknas på de klassificerade tillstånden.</strong> Fördelningen omfattar bara de tillstånd som har ett huvudsakligt användningsändamål angivet, och de fördelar sig på sju klasser. Tillstånd utan användningsändamål ingår inte i fördelningen, och deras antal nämns på kortet för användningsändamål.</li>
       <li><strong>Färgen för ett användningsändamål ligger fast.</strong> Färgen följer användningsändamålet och inte dess placering, så samma byggnadstyp har samma färg från en avgränsning till en annan. Färgerna är valda så att intilliggande sektorer skiljer sig från varandra också vid de vanligaste formerna av färgseendedefekt — färgen är ändå inte den enda identifieraren, utan varje sektor är namngiven i teckenförklaringen och i tabellen.</li>
@@ -252,6 +265,6 @@
 
 <!-- Shares the ?v= cache token with the Finnish shell and with every import
      specifier in assets/js/ — see the note in ../tilastot/index.html. -->
-<script type="module" src="../assets/js/app.js?v=2026-09-03a"></script>
+<script type="module" src="../assets/js/app.js?v=2026-09-07a"></script>
 </body>
 </html>

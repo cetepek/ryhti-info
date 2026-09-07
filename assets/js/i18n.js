@@ -66,6 +66,7 @@ const STRINGS = {
     colMunicipality: "Kunta",
     colTotalArea: "Kokonaiskerrosala",
     colAccuracy: "Tarkkuus",
+    colApartments: "Asuntoja",
 
     // Purpose card.
     purposeNote: "Lupien määrä rakennuksen pääkäyttötarkoituksen mukaan.",
@@ -89,6 +90,15 @@ const STRINGS = {
       "Arvio: otoksen keskimääräinen kerrosala × lupien määrä. Rajaus on niin laaja, ettei " +
       "tarkkaa summaa lasketa, joten luku voi poiketa todellisesta jopa kaksinkertaisesti " +
       "kumpaan suuntaan tahansa.",
+
+    // Municipality apartments card. Always exact — new-building permit volume
+    // per year across the candidate municipalities never approaches a
+    // sampling threshold, so there is no estimate variant to caption.
+    muniApartmentsGate: "Valitse yksittäinen vuosi nähdäksesi uudisrakennuslupien asunnot kunnittain.",
+    muniApartmentsNote:
+      "Kaikkien uudisrakennuslupien asuntomäärät on laskettu yhteen valitulta vuodelta. Luku on aina tarkka.",
+    muniApartmentsIncomplete:
+      "Kuntakohtaisia lukuja ei voitu laskea, koska osa hausta epäonnistui. Yritä uudelleen.",
 
     // Month comparison.
     noCompleteMonths: (year) =>
@@ -160,6 +170,7 @@ const STRINGS = {
     colMunicipality: "Kommun",
     colTotalArea: "Total våningsyta",
     colAccuracy: "Noggrannhet",
+    colApartments: "Bostäder",
 
     purposeNote: "Antalet tillstånd enligt byggnadens huvudsakliga användningsändamål.",
     purposeUnclassified: (n) =>
@@ -182,6 +193,12 @@ const STRINGS = {
       "Uppskattning: urvalets genomsnittliga våningsyta × antalet tillstånd. Avgränsningen är " +
       "så bred att någon exakt summa inte beräknas, så talet kan avvika från det verkliga med " +
       "upp till det dubbla åt endera hållet.",
+
+    muniApartmentsGate: "Välj ett enskilt år för att se bostäder i nybyggnadslov per kommun.",
+    muniApartmentsNote:
+      "Antalet bostäder i alla nybyggnadslov har summerats för det valda året. Talet är alltid exakt.",
+    muniApartmentsIncomplete:
+      "De kommunvisa talen kunde inte beräknas, eftersom en del av hämtningen misslyckades. Försök igen.",
 
     noCompleteMonths: (year) =>
       `För år ${year} finns ännu ingen avslutad månad, så det finns inget att jämföra.`,

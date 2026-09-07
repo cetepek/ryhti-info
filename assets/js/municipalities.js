@@ -2,7 +2,7 @@
 // municipalities) — do not hand-edit. Both name columns are the registry's own
 // prefLabel, so the Swedish names are the official ones rather than
 // translations of the Finnish.
-import { locale } from "./i18n.js?v=2026-09-03a";
+import { locale } from "./i18n.js?v=2026-09-07a";
 
 export const MUNICIPALITY_NAMES = {
   "005": "Alajärvi",
