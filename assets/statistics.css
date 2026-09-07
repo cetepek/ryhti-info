@@ -112,10 +112,58 @@ body {
 
 .wrap { max-width: 940px; margin: 0 auto; padding: 0 20px; }
 
+/* Language switch. Sits above the title rather than in a nav bar: it is the
+   only cross-page link on either shell, and a reader who landed on the wrong
+   language needs it before reading anything else, not after. Each shell links
+   only to the other one, so the link text is always the language you would be
+   switching TO — written in that language, which is what makes it recognisable
+   to someone who cannot read the current page. */
+.lang-switch { margin: 0 0 12px; font-size: 0.85rem; }
+.lang-switch a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1px;
+}
+.lang-switch a:hover { color: var(--text-primary); border-bottom-color: currentColor; }
+.lang-switch a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
+
 .page-header { padding: 40px 0 8px; }
 .page-header h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -0.02em; }
 .lede { margin: 0; color: var(--text-secondary); max-width: 62ch; }
 .lede a { color: inherit; }
+
+/* The app link. Secondary to the data on this page, so it is smaller than the
+   landing page's primary call to action — but the same neutral pill, because a
+   reader who arrives here directly has no other route to the app and should
+   recognise it as the same affordance. The neutral pair inverts per theme and
+   measures ~18.7:1 light / ~19.4:1 dark, well clear of AA. */
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 16px 0 0;
+}
+.app-store-button {
+  display: inline-block;
+  background: var(--text-primary);
+  color: var(--page-plane);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 9px;
+}
+.app-store-button:hover { opacity: 0.88; }
+.app-store-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+/* --text-secondary, not --text-muted: muted measures 3.41:1 on the page plane
+   in light mode, under the 4.5:1 AA wants for text this size. Secondary gives
+   7.53:1 / 10.85:1. */
+.cta-meta { color: var(--text-secondary); font-size: 0.82rem; }
 
 /* ---- Filters: one row above the charts ---- */
 /* Sticky: the page is long, every figure below is scoped by these three
@@ -251,6 +299,13 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
    left, compared year always right — with the legend and the table twin behind
    that. Color is never the only thing carrying which year is which. */
 .bar-mark-previous { fill: var(--text-muted); }
+/* The running month: same hue, different texture. Length already means "how
+   many", so a partial month must not differ from a whole one by length alone —
+   the hatch says it is a different KIND of bar. Texture rather than a paler
+   color, so it survives greyscale and any color vision deficiency. */
+.hatch-ground { fill: var(--series-blue); fill-opacity: 0.18; }
+.hatch-stripe { stroke: var(--series-blue); stroke-width: 3.5; }
+.axis-label-year { fill: var(--text-secondary); font-weight: 600; }
 /* The one direct label on the chart: the peak. Text wears a text token, never
    the series color. */
 .peak-label {
@@ -509,16 +564,39 @@ select:focus-visible, .reload:focus-visible, summary:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* Inline year picker inside a card head. Borrows the filter row's select
+   styling but sits on one line with its label, because it scopes one card
+   rather than the page. */
+.inline-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 12px 0 0;
+}
+.inline-fields .inline-field { margin: 0; }
+.inline-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.inline-field label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+.inline-field select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--axis-line);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.inline-field select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
 .lazy-body { margin-top: 16px; }
 .lazy-status { color: var(--text-muted); font-size: 0.87rem; margin-bottom: 12px; }
 .lazy-status[hidden] { display: none; }
-/* Nothing to compare against under "Kaikki vuodet". The control is dimmed and
-   inert rather than removed, so it does not vanish from under a reader, and the
-   status line above says why. */
-.lazy-section.is-unavailable > summary {
-  opacity: 0.45;
-  pointer-events: none;
-}
+
 
 @media (prefers-reduced-motion: reduce) {
   .lazy-section > summary::before { transition: none; }

@@ -24,10 +24,12 @@
 // light-mode slot colors sit below 3:1 on the card surface, so color is never
 // what carries identity.
 
-const numberFI = new Intl.NumberFormat("fi-FI");
+import { t, numberLocale } from "./i18n.js?v=2026-09-03a";
+
+const numberFormat = new Intl.NumberFormat(numberLocale);
 
 export const formatNumber = (value) =>
-  value === null || value === undefined || !Number.isFinite(value) ? "–" : numberFI.format(Math.round(value));
+  value === null || value === undefined || !Number.isFinite(value) ? "–" : numberFormat.format(Math.round(value));
 
 /**
  * One shared tooltip node for the whole page, created on first use.
@@ -112,7 +114,7 @@ function niceScale(max, targetTicks = 4) {
 export function renderColumnChart(container, data) {
   container.innerHTML = "";
   if (!data || data.length === 0) {
-    container.appendChild(emptyNote("Ei tietoja valituilla rajauksilla."));
+    container.appendChild(emptyNote(t.noDataForFilters));
     return;
   }
 
@@ -133,7 +135,7 @@ export function renderColumnChart(container, data) {
     height,
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
-    "aria-label": `Lupien määrä vuosittain, ${data[0].year}–${data[data.length - 1].year}`,
+    "aria-label": t.ariaPermitsByYear(data[0].year, data[data.length - 1].year),
   });
 
   // Gridlines + y ticks, drawn first so marks sit above them.
@@ -201,9 +203,9 @@ export function renderColumnChart(container, data) {
       class: "hit-target",
       tabindex: "0",
       role: "img",
-      "aria-label": `${d.year}: ${formatNumber(d.count)} lupaa`,
+      "aria-label": `${d.year}: ${formatNumber(d.count)} ${t.permitsUnit}`,
     });
-    const show = () => showTooltip(hit, `${formatNumber(d.count)} lupaa`, String(d.year));
+    const show = () => showTooltip(hit, `${formatNumber(d.count)} ${t.permitsUnit}`, String(d.year));
     hit.addEventListener("pointerenter", show);
     hit.addEventListener("focus", show);
     hit.addEventListener("pointerleave", hideTooltip);
@@ -225,6 +227,140 @@ function roundedTopBar(x, y, width, height, radius) {
     `L ${x + width} ${y + height}`,
     "Z",
   ].join(" ");
+}
+
+/** Pattern ids must be unique per document, and several charts can coexist. */
+let patternSeq = 0;
+
+/**
+ * A single month series across a rolling window.
+ *
+ * The running month is drawn as a HATCH rather than a shorter solid bar. Length
+ * is the one thing a bar chart encodes, so a partial month drawn solid is read
+ * as a real decline no matter what the caption says; changing the fill changes
+ * what kind of thing the mark is, which is the actual message. The hatch is a
+ * texture and not a color, so it survives greyscale and every form of color
+ * vision deficiency.
+ *
+ * @param {HTMLElement} container
+ * @param {Array<{year:number,month:number,label:string,count:number|null,partial:boolean}>} data
+ */
+export function renderMonthSeriesChart(container, data, options = {}) {
+  const { unit = t.permitsUnit } = options;
+  container.innerHTML = "";
+  if (!data || data.length === 0) {
+    container.appendChild(emptyNote(t.noDataForFilters));
+    return;
+  }
+
+  const width = Math.max(container.clientWidth || 640, 320);
+  const height = 280;
+  // Deeper bottom padding than the year chart: this axis carries two labels per
+  // slot, the month and (on a change) the year.
+  const pad = { top: 16, right: 8, bottom: 46, left: 68 };
+  const plotWidth = width - pad.left - pad.right;
+  const plotHeight = height - pad.top - pad.bottom;
+
+  const values = data.map((d) => d.count).filter((v) => Number.isFinite(v));
+  const { max: axisMax, step } = niceScale(Math.max(...values, 0));
+
+  const svg = svgEl("svg", {
+    width: "100%",
+    height,
+    viewBox: `0 0 ${width} ${height}`,
+    role: "img",
+    "aria-label": t.ariaPermitsByMonth(
+      `${data[0].label} ${data[0].year}`,
+      `${data[data.length - 1].label} ${data[data.length - 1].year}`
+    ),
+  });
+
+  const patternId = `hatch-partial-${++patternSeq}`;
+  const defs = svgEl("defs");
+  const pattern = svgEl("pattern", {
+    id: patternId,
+    width: 7,
+    height: 7,
+    patternUnits: "userSpaceOnUse",
+    patternTransform: "rotate(45)",
+  });
+  pattern.appendChild(svgEl("rect", { width: 7, height: 7, class: "hatch-ground" }));
+  pattern.appendChild(svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 7, class: "hatch-stripe" }));
+  defs.appendChild(pattern);
+  svg.appendChild(defs);
+
+  for (let value = 0; value <= axisMax + 1e-9; value += step) {
+    const y = pad.top + plotHeight - (value / axisMax) * plotHeight;
+    svg.appendChild(
+      svgEl("line", { x1: pad.left, y1: y, x2: width - pad.right, y2: y, class: value === 0 ? "axis-line" : "grid-line" })
+    );
+    const label = svgEl("text", { x: pad.left - 8, y: y + 4, class: "axis-label", "text-anchor": "end" });
+    label.textContent = formatNumber(value);
+    svg.appendChild(label);
+  }
+
+  const slot = plotWidth / data.length;
+  const barWidth = Math.max(Math.min(slot - 6, 30), 4);
+  const radius = Math.min(4, barWidth / 2);
+
+  data.forEach((d, index) => {
+    const x = pad.left + slot * index + (slot - barWidth) / 2;
+
+    if (Number.isFinite(d.count) && axisMax > 0) {
+      const barHeight = (d.count / axisMax) * plotHeight;
+      if (barHeight > 0) {
+        const bar = svgEl("path", {
+          d: roundedTopBar(x, pad.top + plotHeight - barHeight, barWidth, barHeight, radius),
+          class: d.partial ? "bar-mark-partial" : "bar-mark",
+        });
+        if (d.partial) bar.setAttribute("fill", `url(#${patternId})`);
+        svg.appendChild(bar);
+      }
+    }
+
+    const monthLabel = svgEl("text", {
+      x: x + barWidth / 2,
+      y: height - pad.bottom + 18,
+      class: "axis-label",
+      "text-anchor": "middle",
+    });
+    monthLabel.textContent = slot < 30 ? d.label.slice(0, 1) : d.label;
+    svg.appendChild(monthLabel);
+
+    // The year is printed only where it changes, so the axis says which year a
+    // month belongs to without repeating it thirteen times.
+    if (index === 0 || d.year !== data[index - 1].year) {
+      const yearLabel = svgEl("text", {
+        x: x + barWidth / 2,
+        y: height - pad.bottom + 33,
+        class: "axis-label axis-label-year",
+        "text-anchor": "middle",
+      });
+      yearLabel.textContent = String(d.year);
+      svg.appendChild(yearLabel);
+    }
+
+    const readout = Number.isFinite(d.count) ? `${formatNumber(d.count)} ${unit}` : t.noValue;
+    const suffix = d.partial ? t.partialSuffix : "";
+    const hit = svgEl("rect", {
+      x: pad.left + slot * index,
+      y: pad.top,
+      width: slot,
+      height: plotHeight,
+      class: "hit-target",
+      tabindex: "0",
+      role: "img",
+      "aria-label": `${d.label} ${d.year}${suffix}: ${readout}`,
+    });
+    const show = () => showTooltip(hit, readout, `${d.label} ${d.year}${suffix}`);
+    hit.addEventListener("pointerenter", show);
+    hit.addEventListener("focus", show);
+    hit.addEventListener("pointerleave", hideTooltip);
+    hit.addEventListener("blur", hideTooltip);
+    svg.appendChild(hit);
+  });
+
+  container.appendChild(svg);
 }
 
 /**
@@ -249,10 +385,10 @@ function roundedTopBar(x, y, width, height, radius) {
  * @param {string} options.previousLabel  legend text for the compared year
  */
 export function renderGroupedColumnChart(container, data, options = {}) {
-  const { currentLabel = "", previousLabel = "", unit = "lupaa" } = options;
+  const { currentLabel = "", previousLabel = "", unit = t.permitsUnit } = options;
   container.innerHTML = "";
   if (!data || data.length === 0) {
-    container.appendChild(emptyNote("Ei vertailukelpoisia kuukausia valituilla rajauksilla."));
+    container.appendChild(emptyNote(t.noComparableMonths));
     return;
   }
 
@@ -288,7 +424,7 @@ export function renderGroupedColumnChart(container, data, options = {}) {
     height,
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
-    "aria-label": `Lupien määrä kuukausittain, ${currentLabel} verrattuna vuoteen ${previousLabel}`,
+    "aria-label": t.ariaMonthComparison(currentLabel, previousLabel),
   });
 
   for (let value = 0; value <= axisMax + 1e-9; value += step) {
@@ -332,12 +468,12 @@ export function renderGroupedColumnChart(container, data, options = {}) {
       class: "axis-label",
       "text-anchor": "middle",
     });
-    // First letter only once the slots stop fitting three ("hei" vs "h"); an
+    // First letter only once the slots stop fitting the abbreviation; an
     // overlapping label is worse than a terse one, and the table carries names.
     monthLabel.textContent = slot < 26 ? d.label.slice(0, 1) : d.label;
     svg.appendChild(monthLabel);
 
-    const readout = (value) => (Number.isFinite(value) ? `${formatNumber(value)} ${unit}` : "ei tietoa");
+    const readout = (value) => (Number.isFinite(value) ? `${formatNumber(value)} ${unit}` : t.noValue);
     const hit = svgEl("rect", {
       x: pad.left + slot * index,
       y: pad.top,
@@ -372,7 +508,7 @@ export function renderBarRows(container, rows, options = {}) {
   const { hue = "blue" } = options;
   container.innerHTML = "";
   if (!rows || rows.length === 0) {
-    container.appendChild(emptyNote("Ei tietoja valituilla rajauksilla."));
+    container.appendChild(emptyNote(t.noDataForFilters));
     return;
   }
 
@@ -518,20 +654,20 @@ function donutSlicePath(cx, cy, rOuter, rInner, startAngle, endAngle) {
  * @param {Array<{label:string,value:number,slot:number}>} segments  fixed order, slot 1-7
  * @param {object} [options]
  * @param {string} [options.centerLabel]   caption under the figure in the hole
- * @param {string} [options.unitLabel]     noun for the tooltip ("lupaa")
+ * @param {string} [options.unitLabel]     noun for the tooltip ("lupaa" / "tillstånd")
  * @param {boolean} [options.legendValues] print counts and shares in the legend.
  *   Off where the ring sits above bar rows carrying the same numbers — there the
  *   legend is a color key and nothing more, and repeating the figures twice in
  *   one card would be noise rather than redundancy that earns its place.
  */
 export function renderDonutChart(container, segments, options = {}) {
-  const { centerLabel = "yhteensä", unitLabel = "lupaa", legendValues = true } = options;
+  const { centerLabel = t.chartTotal, unitLabel = t.permitsUnit, legendValues = true } = options;
   container.innerHTML = "";
 
   const drawable = (segments ?? []).filter((s) => Number.isFinite(s.value) && s.value > 0);
   const total = drawable.reduce((sum, s) => sum + s.value, 0);
   if (drawable.length === 0 || total <= 0) {
-    container.appendChild(emptyNote("Ei tietoja valituilla rajauksilla."));
+    container.appendChild(emptyNote(t.noDataForFilters));
     return;
   }
 
@@ -540,7 +676,7 @@ export function renderDonutChart(container, segments, options = {}) {
   // small purposes, while "62.4 %" implies precision the reader cannot use.
   const shareLabel = (value) => {
     const pct = share(value) * 100;
-    return `${pct.toLocaleString("fi-FI", { minimumFractionDigits: pct < 10 ? 1 : 0, maximumFractionDigits: pct < 10 ? 1 : 0 })} %`;
+    return `${pct.toLocaleString(numberLocale, { minimumFractionDigits: pct < 10 ? 1 : 0, maximumFractionDigits: pct < 10 ? 1 : 0 })} %`;
   };
 
   const wrapper = document.createElement("div");
@@ -556,7 +692,7 @@ export function renderDonutChart(container, segments, options = {}) {
     viewBox: `0 0 ${size} ${size}`,
     class: "donut-figure",
     role: "img",
-    "aria-label": `Lupien jakauma käyttötarkoituksittain, yhteensä ${formatNumber(total)} ${unitLabel}`,
+    "aria-label": t.ariaPurposeSplit(formatNumber(total), unitLabel),
   });
 
   let angle = -Math.PI / 2;
@@ -647,7 +783,7 @@ export function renderLineChart(container, data, options = {}) {
 
   const points = (data ?? []).filter((d) => Number.isFinite(d.value));
   if (points.length === 0) {
-    container.appendChild(emptyNote("Ei kerrosalatietoja valituilla rajauksilla."));
+    container.appendChild(emptyNote(t.noAreaForFilters));
     return;
   }
 
@@ -679,7 +815,7 @@ export function renderLineChart(container, data, options = {}) {
     height,
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
-    "aria-label": `Mediaanikerrosala vuosittain, ${data[0].year}–${data[data.length - 1].year}`,
+    "aria-label": t.ariaMedianAreaByYear(data[0].year, data[data.length - 1].year),
   });
 
   for (let value = axisMin; value <= axisMax + 1e-9; value += step) {
@@ -737,7 +873,7 @@ export function renderLineChart(container, data, options = {}) {
       role: "img",
       "aria-label": Number.isFinite(d.value)
         ? `${d.year}: ${formatNumber(d.value)} ${unit}`
-        : `${d.year}: ei kerrosalatietoja`,
+        : `${d.year}: ${t.noAreaForYear}`,
     });
     let crosshair = null;
     const show = () => {
@@ -745,7 +881,7 @@ export function renderLineChart(container, data, options = {}) {
         crosshair = svgEl("line", { x1: x, y1: pad.top, x2: x, y2: pad.top + plotHeight, class: "crosshair" });
         svg.insertBefore(crosshair, svg.firstChild.nextSibling);
       }
-      showTooltip(hit, Number.isFinite(d.value) ? `${formatNumber(d.value)} ${unit}` : "Ei tietoja", String(d.year));
+      showTooltip(hit, Number.isFinite(d.value) ? `${formatNumber(d.value)} ${unit}` : t.noValueCap, String(d.year));
     };
     const hide = () => {
       crosshair?.remove();
@@ -783,7 +919,7 @@ export function renderDivergingColumnChart(container, data) {
   container.innerHTML = "";
   const points = (data ?? []).filter((d) => Number.isFinite(d.delta));
   if (points.length === 0) {
-    container.appendChild(emptyNote("Ei vertailukelpoisia vuosia valituilla rajauksilla."));
+    container.appendChild(emptyNote(t.noComparableYears));
     return;
   }
 
@@ -810,7 +946,7 @@ export function renderDivergingColumnChart(container, data) {
     height,
     viewBox: `0 0 ${width} ${height}`,
     role: "img",
-    "aria-label": `Lupamäärän muutos edellisvuoteen verrattuna, ${data[0].year}–${data[data.length - 1].year}`,
+    "aria-label": t.ariaYearOverYear(data[0].year, data[data.length - 1].year),
   });
 
   for (let value = axisBottom; value <= axisTop + 1e-9; value += step) {
@@ -891,11 +1027,11 @@ export function renderDivergingColumnChart(container, data) {
       tabindex: "0",
       role: "img",
       "aria-label": hasValue
-        ? `${d.year}: ${formatPercentDelta(d.delta)} edellisvuoteen verrattuna`
-        : `${d.year}: ei vertailuvuotta`,
+        ? t.ariaYearDelta(d.year, formatPercentDelta(d.delta))
+        : `${d.year}: ${t.noComparisonYear}`,
     });
     const show = () =>
-      showTooltip(hit, hasValue ? formatPercentDelta(d.delta) : "Ei vertailuvuotta", String(d.year));
+      showTooltip(hit, hasValue ? formatPercentDelta(d.delta) : t.noComparisonYearCap, String(d.year));
     hit.addEventListener("pointerenter", show);
     hit.addEventListener("focus", show);
     hit.addEventListener("pointerleave", hideTooltip);

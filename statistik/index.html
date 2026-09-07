@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statistik över byggnadstillstånd</title>
+<meta name="description" content="Statistik över Finlands öppna material om byggnadstillstånd (Ryhti-gränssnittet).">
+<link rel="stylesheet" href="../assets/statistics.css">
+<link rel="alternate" hreflang="sv" href="https://ryhti.botit.fi/statistik/">
+<link rel="alternate" hreflang="fi" href="https://ryhti.botit.fi/tilastot/">
+</head>
+<body>
+<header class="page-header">
+  <div class="wrap">
+    <p class="lang-switch"><a href="../tilastot/" hreflang="fi" lang="fi">Suomeksi</a></p>
+    <h1>Statistik över byggnadstillstånd</h1>
+    <p class="lede">
+      Statistik över Finlands öppna material om byggnadstillstånd. Talen hämtas direkt från
+      <a href="https://paikkatiedot.ymparisto.fi" rel="noreferrer noopener" target="_blank">Ryhti-gränssnittet</a>.
+    </p>
+    <p class="cta">
+      <a class="app-store-button"
+         href="https://apps.apple.com/fi/app/ryhti-rakentamisluvat/id6804220473"
+         rel="noreferrer noopener" target="_blank">Ladda ner Ryhti från App Store</a>
+      <span class="cta-meta">Samma tillstånd att bläddra i telefonen · gratis · iOS 17</span>
+    </p>
+  </div>
+</header>
+
+<main class="wrap">
+  <form class="filters" id="filters" aria-label="Avgränsningar">
+    <div class="field">
+      <label for="year">År</label>
+      <select id="year"></select>
+    </div>
+    <div class="field">
+      <label for="municipality">Kommun</label>
+      <select id="municipality"></select>
+    </div>
+    <div class="field">
+      <label for="purpose">Användningsändamål</label>
+      <select id="purpose"></select>
+    </div>
+    <button type="button" id="reload" class="reload">Uppdatera</button>
+  </form>
+
+  <div id="status" class="status" role="status" aria-live="polite" hidden>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <span id="status-text">Hämtar…</span>
+  </div>
+
+  <div id="error" class="error-panel" role="alert" hidden></div>
+
+  <div id="results">
+    <section class="hero-block" aria-labelledby="hero-heading">
+      <h2 id="hero-heading" class="section-title">Tillstånd totalt</h2>
+      <p class="hero-figure" id="total-count">–</p>
+      <p class="scope-chips" id="scope-chips"></p>
+    </section>
+
+    <section class="tiles" aria-label="Typiska värden">
+      <article class="tile">
+        <h3>Typisk våningsyta</h3>
+        <p class="tile-value" id="typical-area">–</p>
+        <p class="tile-note" id="typical-area-note">Urvalets median</p>
+      </article>
+      <article class="tile">
+        <h3>Typiskt våningsantal</h3>
+        <p class="tile-value" id="typical-storeys">–</p>
+        <p class="tile-note" id="typical-storeys-note">Urvalets median</p>
+      </article>
+    </section>
+
+    <section class="card" aria-labelledby="time-heading">
+      <div class="card-head">
+        <h2 id="time-heading" class="section-title">Tillstånd per år</h2>
+        <p class="section-note">En period på 12 år visas alltid, också när avgränsningen gäller ett enda år.</p>
+      </div>
+      <div id="chart-years" class="chart"></div>
+
+      <div class="sub-chart">
+        <h3 class="sub-title">Förändring jämfört med föregående år</h3>
+        <p class="section-note">
+          En blå stapel som pekar uppåt betyder ökning och en röd som pekar nedåt
+          minskning; vid nollinjen finns ingen förändring. Förändringen beräknas
+          på de exakta tillståndsantalen. För det innevarande året visas ingen
+          förändring, eftersom en jämförelse mellan ett ofullbordat och ett helt
+          år skulle se ut som ett brant fall.
+        </p>
+        <div id="chart-yoy" class="chart"></div>
+      </div>
+
+      <details class="table-view">
+        <summary>Visa som tabell</summary>
+        <div id="table-years"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="month-heading">
+      <div class="card-head">
+        <h2 id="month-heading" class="section-title">Månadsjämförelse</h2>
+        <p class="section-note" id="month-note">
+          Två års tillståndsantal sida vid sida månad för månad. Kortet använder
+          sina egna årsval och följer inte avgränsningen År; avgränsningarna för
+          kommun och användningsändamål gäller. Den pågående månaden lämnas
+          bort, eftersom en ofullständig månad bredvid en hel skulle se ut som
+          en nedgång även om den inte är det.
+        </p>
+        <div class="inline-fields">
+          <p class="inline-field">
+            <label for="month-year-a">År</label>
+            <select id="month-year-a"></select>
+          </p>
+          <p class="inline-field">
+            <label for="month-year-b">Jämfört med år</label>
+            <select id="month-year-b"></select>
+          </p>
+        </div>
+      </div>
+      <!-- Outside the disclosure on purpose: it carries the "pick a single year"
+           explanation, which is needed precisely when the section is collapsed. -->
+      <div id="month-status" class="lazy-status" role="status" aria-live="polite" hidden></div>
+      <details class="lazy-section" id="month-details">
+        <summary>Visa månadsjämförelsen</summary>
+        <div class="lazy-body">
+          <div id="chart-months" class="chart"></div>
+          <div id="table-months"></div>
+        </div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="rolling-heading">
+      <div class="card-head">
+        <h2 id="rolling-heading" class="section-title">De senaste 12 månaderna</h2>
+        <p class="section-note">
+          Den innevarande månaden och de 12 månaderna före den. Perioden flyttar
+          sig med dagen och följer inte avgränsningen År; de övriga
+          avgränsningarna gäller. Den innevarande månaden är streckad, eftersom
+          den ännu pågår — dess stapel växer till månadens slut och är inte
+          jämförbar med de andra.
+        </p>
+      </div>
+      <div id="rolling-status" class="lazy-status" role="status" aria-live="polite" hidden></div>
+      <details class="lazy-section" id="rolling-details">
+        <summary>Visa de senaste 12 månaderna</summary>
+        <div class="lazy-body">
+          <div id="chart-rolling" class="chart"></div>
+          <div id="table-rolling"></div>
+        </div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="median-area-heading">
+      <div class="card-head">
+        <h2 id="median-area-heading" class="section-title">Typisk våningsyta per år</h2>
+        <p class="section-note">
+          Medianvåningsytan i varje års urval. Den lodräta axeln börjar inte på noll,
+          eftersom medianerna varierar inom ett smalt intervall: en axel som började
+          på noll skulle platta ut hela perioden till nästan en rak linje. Ett avbrott
+          i linjen betyder att inte en enda uppgift om våningsyta råkade ingå i det
+          årets urval.
+        </p>
+      </div>
+      <div id="chart-median-area" class="chart"></div>
+      <details class="table-view">
+        <summary>Visa som tabell</summary>
+        <div id="table-median-area"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="purpose-heading">
+      <div class="card-head">
+        <h2 id="purpose-heading" class="section-title">Användningsändamål</h2>
+        <p class="section-note" id="purpose-note">Antalet tillstånd enligt byggnadens huvudsakliga användningsändamål.</p>
+      </div>
+      <div id="chart-purpose-split" class="chart"></div>
+      <div class="sub-chart">
+        <h3 class="sub-title">Antal och andelar</h3>
+        <div id="chart-purposes" class="chart"></div>
+      </div>
+      <details class="table-view">
+        <summary>Visa som tabell</summary>
+        <div id="table-purposes"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="action-heading">
+      <div class="card-head">
+        <h2 id="action-heading" class="section-title">Byggåtgärder</h2>
+        <p class="section-note">
+          Antalet tillstånd enligt åtgärd: handlar det om nybyggnad, utvidgning
+          eller ändringsarbete. Andelarna är andelar av alla tillstånd som
+          ingår i avgränsningen.
+        </p>
+      </div>
+      <div id="chart-action-types" class="chart"></div>
+      <details class="table-view">
+        <summary>Visa som tabell</summary>
+        <div id="table-action-types"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="muni-count-heading">
+      <div class="card-head">
+        <h2 id="muni-count-heading" class="section-title">Kommuner enligt antal tillstånd</h2>
+        <p class="section-note">I jämförelsen ingår de 34 största kommunerna, så ordningen täcker inte hela landet.</p>
+      </div>
+      <div id="chart-muni-count" class="chart"></div>
+      <details class="table-view">
+        <summary>Visa som tabell</summary>
+        <div id="table-muni-count"></div>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="muni-area-heading">
+      <div class="card-head">
+        <h2 id="muni-area-heading" class="section-title">Kommuner enligt total våningsyta</h2>
+        <p class="section-note" id="muni-area-note">Beräknas under hämtningen.</p>
+      </div>
+      <div id="chart-muni-area" class="chart"></div>
+      <details class="table-view">
+        <summary>Visa som tabell</summary>
+        <div id="table-muni-area"></div>
+      </details>
+    </section>
+  </div>
+
+  <section class="card methodology" aria-labelledby="method-heading">
+    <h2 id="method-heading" class="section-title">Metod och begränsningar</h2>
+    <ul>
+      <li><strong>Tillståndsantalen är exakta.</strong> De kommer från det träffantal gränssnittet returnerar, inte från ett urval.</li>
+      <li><strong>Kommunernas totala våningsytor är exakta summor.</strong> Med avgränsningen till ett enda år hämtas och summeras våningsytan för varje tillstånd. Ett urval används bara med avgränsningen ”Alla år”, och det nämns då på raden.</li>
+      <li><strong>Typisk våningsyta och typiskt våningsantal bygger på urval.</strong> Ur varje avgränsning plockas högst 30 tillstånd, och medianen beräknas på dem.</li>
+      <li><strong>Medianen beskriver den typiska storleken.</strong> Materialet om våningsytor är kraftigt högersnett, så medianen beskriver den typiska storleken bättre än medelvärdet. När en summa uppskattas är det rätta måttet däremot medelvärde × antalet tillstånd.</li>
+      <li><strong>Fältet <code>gross_floor_area</code> används, inte <code>floor_area</code>.</strong> Det senare är för de flesta användningsändamål ifyllt bara för omkring en procent av tillstånden.</li>
+      <li><strong>Byggåtgärderna är exakta och heltäckande.</strong> Varje tillstånd i det här materialet har en åtgärdstyp, så talen summerar till avgränsningens totalantal och ingen oklassificerad rest blir kvar. Kodförteckningen omfattar också rivning och landskapsåtgärder, men i materialet om byggnadstillstånd förekommer de inte, så de faller bort från kortet.</li>
+      <li><strong>Den rullande 12-månadersperioden följer inte årsavgränsningen.</strong> Den slutar alltid vid den innevarande månaden och svarar därför på frågan ”hur ser läget ut just nu”. Den innevarande månaden visas streckad: den pågår, så dess stapel är inte jämförbar med de avslutade månadernas.</li>
+      <li><strong>Månadsjämförelsen laddas separat.</strong> Den kostar som mest 24 förfrågningar och hämtas därför först när avsnittet öppnas. Talen är exakta träffantal, och de övriga avgränsningarna gäller också där.</li>
+      <li><strong>Kommunjämförelsen omfattar 34 kommuner.</strong> Att gå igenom alla 309 kommuner skulle kräva hundratals extra anrop vid varje laddning.</li>
+      <li><strong>Årsförändringen är exakt, medianvåningsytans utveckling är det inte.</strong> Förändringsprocenten beräknas på de exakta träffantal gränssnittet returnerar. Den årliga medianvåningsytan kommer däremot från varje års urval på högst 30 tillstånd och beskriver alltså en riktning, inte en exakt nivå.</li>
+      <li><strong>Andelarna beräknas på de klassificerade tillstånden.</strong> Fördelningen omfattar bara de tillstånd som har ett huvudsakligt användningsändamål angivet, och de fördelar sig på sju klasser. Tillstånd utan användningsändamål ingår inte i fördelningen, och deras antal nämns på kortet för användningsändamål.</li>
+      <li><strong>Färgen för ett användningsändamål ligger fast.</strong> Färgen följer användningsändamålet och inte dess placering, så samma byggnadstyp har samma färg från en avgränsning till en annan. Färgerna är valda så att intilliggande sektorer skiljer sig från varandra också vid de vanligaste formerna av färgseendedefekt — färgen är ändå inte den enda identifieraren, utan varje sektor är namngiven i teckenförklaringen och i tabellen.</li>
+    </ul>
+    <p class="source-note">
+      Källa: Finlands miljöcentral (SYKE), materialet om byggnadstillstånd från dess
+      <a href="https://www.syke.fi/fi/ymparistotieto/avoimet-rajapinnat/paikkatietorajapinnat" rel="noreferrer noopener" target="_blank" hreflang="fi">öppna geodatagränssnitt</a>
+      (samlingen <code>open_permit_building</code>; sidan finns bara på finska). Materialet är licensierat under
+      <a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="noreferrer noopener" target="_blank">CC BY 4.0</a>.
+    </p>
+  </section>
+</main>
+
+<!-- Shares the ?v= cache token with the Finnish shell and with every import
+     specifier in assets/js/ — see the note in ../tilastot/index.html. -->
+<script type="module" src="../assets/js/app.js?v=2026-09-03a"></script>
+</body>
+</html>

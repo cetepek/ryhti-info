@@ -1,6 +1,8 @@
 // Browser-side client for the Ryhti open building-permit OGC API - Features
 // endpoint. Mirrors Ryhti/Core/Networking/RyhtiAPIClient.swift.
 
+import { t } from "./i18n.js?v=2026-09-03a";
+
 const DIRECT_BASE =
   "https://paikkatiedot.ymparisto.fi/geoserver/ryhti_permit/ogc/features/v1/collections";
 
@@ -52,18 +54,18 @@ async function fetchJSON(url, signal) {
     // CORS posture was unknown. It is now confirmed to allow browser calls, so
     // a failure here is a connection problem — saying "or maybe CORS" would
     // just be noise pointing the reader at the wrong thing.
-    throw new APIError("Yhteys rajapintaan epäonnistui. Tarkista verkkoyhteys ja yritä uudelleen.", {
+    throw new APIError(t.networkFailed, {
       cause: error,
       isNetwork: true,
     });
   }
   if (!response.ok) {
-    throw new APIError(`Rajapinta palautti virheen ${response.status}.`, { status: response.status });
+    throw new APIError(t.apiStatus(response.status), { status: response.status });
   }
   try {
     return await response.json();
   } catch (error) {
-    throw new APIError("Rajapinnan vastausta ei voitu lukea.", { cause: error });
+    throw new APIError(t.apiUnreadable, { cause: error });
   }
 }
 
