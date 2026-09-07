@@ -96,7 +96,8 @@ const STRINGS = {
     // sampling threshold, so there is no estimate variant to caption.
     muniApartmentsGate: "Valitse yksittäinen vuosi nähdäksesi uudisrakennuslupien asunnot kunnittain.",
     muniApartmentsNote:
-      "Kaikkien uudisrakennuslupien asuntomäärät on laskettu yhteen valitulta vuodelta. Luku on aina tarkka.",
+      "Uudisrakennuslupien asuntomäärät on laskettu yhteen valitulta vuodelta. Luku on aina tarkka. " +
+      "Ilman kuntarajausta mukana ovat 34 suurinta kuntaa; yhden kunnan valinta hakee juuri sen kunnan luvun.",
     muniApartmentsIncomplete:
       "Kuntakohtaisia lukuja ei voitu laskea, koska osa hausta epäonnistui. Yritä uudelleen.",
 
@@ -196,7 +197,8 @@ const STRINGS = {
 
     muniApartmentsGate: "Välj ett enskilt år för att se bostäder i nybyggnadslov per kommun.",
     muniApartmentsNote:
-      "Antalet bostäder i alla nybyggnadslov har summerats för det valda året. Talet är alltid exakt.",
+      "Antalet bostäder i nybyggnadslov har summerats för det valda året. Talet är alltid exakt. " +
+      "Utan en kommunavgränsning ingår de 34 största kommunerna; att välja en enskild kommun hämtar just den kommunens tal.",
     muniApartmentsIncomplete:
       "De kommunvisa talen kunde inte beräknas, eftersom en del av hämtningen misslyckades. Försök igen.",
 

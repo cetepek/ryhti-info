@@ -18,13 +18,13 @@
 //  * Sample sizes travel with every sample-derived number so a thin sample is
 //    visible rather than hidden behind a confident-looking figure.
 
-import { fetchCount, fetchSample } from "./api.js?v=2026-09-07a";
-import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js?v=2026-09-07a";
-import { runLimited } from "./batcher.js?v=2026-09-07a";
-import { buildCQLFilter, yearRange, monthRange } from "./cql.js?v=2026-09-07a";
-import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js?v=2026-09-07a";
-import { municipalityName } from "./municipalities.js?v=2026-09-07a";
-import { t } from "./i18n.js?v=2026-09-07a";
+import { fetchCount, fetchSample } from "./api.js?v=2026-09-07b";
+import { fetchHits, fetchPage, pageCount, MAX_ROWS_PER_PAGE } from "./wfs.js?v=2026-09-07b";
+import { runLimited } from "./batcher.js?v=2026-09-07b";
+import { buildCQLFilter, yearRange, monthRange } from "./cql.js?v=2026-09-07b";
+import { BUILDING_PURPOSES, CONSTRUCTION_ACTION_TYPES } from "./codelists.js?v=2026-09-07b";
+import { municipalityName } from "./municipalities.js?v=2026-09-07b";
+import { t } from "./i18n.js?v=2026-09-07b";
 
 /** How many permits each bucket samples for its median size/storey figures. */
 const SAMPLE_LIMIT = 30;
@@ -196,11 +196,20 @@ export async function loadStatistics(state, options = {}) {
   // the 34 candidate municipalities never approaches a sampling threshold
   // (confirmed live against real data during the app's own Phase 17 work:
   // a few thousand rows a year even in the largest municipality).
+  //
+  // Unlike the floor-area/count municipality sections above, this one DOES
+  // respect the page's own municipality filter: with one selected, the query
+  // scopes to exactly that municipality (even one outside the 34 largest)
+  // instead of silently ignoring the filter and showing the candidate
+  // ranking regardless — a real gap, reported directly, in the first version
+  // of this section.
   let apartmentsPlan = null;
   if (selectedYear !== null) {
+    const apartmentsMunicipalities =
+      state.municipalities.length > 0 ? state.municipalities : CANDIDATE_MUNICIPALITY_CODES;
     const apartmentsFilter = buildCQLFilter({
       ...state,
-      municipalities: CANDIDATE_MUNICIPALITY_CODES,
+      municipalities: apartmentsMunicipalities,
       actionTypes: ["01"],
     });
     try {
@@ -386,9 +395,14 @@ function assemble(results, state, years, plan, apartmentsPlan) {
       const apartmentsComplete =
         apartmentsPages.length === apartmentsPlan.pages && apartmentsRows.length === apartmentsPlan.expected;
       if (apartmentsComplete) {
-        newApartmentsByMunicipality = aggregateApartmentsSweep(apartmentsRows)
-          .sort((a, b) => b.apartmentCount - a.apartmentCount)
-          .slice(0, 10);
+        // No .slice(0, 10) here, unlike topMunicipalitiesByCount/ByFloorArea:
+        // with a specific municipality selected this list has only one row
+        // anyway, and with none selected the reader asked to see every
+        // candidate, not a truncated top slice — reported directly against
+        // the first version of this section.
+        newApartmentsByMunicipality = aggregateApartmentsSweep(apartmentsRows).sort(
+          (a, b) => b.apartmentCount - a.apartmentCount
+        );
       } else {
         apartmentsDataIncomplete = true;
       }

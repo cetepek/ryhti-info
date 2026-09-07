@@ -24,7 +24,7 @@
 // light-mode slot colors sit below 3:1 on the card surface, so color is never
 // what carries identity.
 
-import { t, numberLocale } from "./i18n.js?v=2026-09-07a";
+import { t, numberLocale } from "./i18n.js?v=2026-09-07b";
 
 const numberFormat = new Intl.NumberFormat(numberLocale);
 

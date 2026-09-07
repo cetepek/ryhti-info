@@ -5,7 +5,7 @@ import {
   selectableYears,
   completeMonthCount,
   roundToTwoSignificantFigures,
-} from "./stats.js?v=2026-09-07a";
+} from "./stats.js?v=2026-09-07b";
 import {
   renderColumnChart,
   renderBarRows,
@@ -17,11 +17,11 @@ import {
   renderMonthSeriesChart,
   formatNumber,
   formatPercentDelta,
-} from "./charts.js?v=2026-09-07a";
-import { yearRange } from "./cql.js?v=2026-09-07a";
-import { BUILDING_PURPOSES } from "./codelists.js?v=2026-09-07a";
-import { municipalityNames, municipalityName } from "./municipalities.js?v=2026-09-07a";
-import { t, locale, numberLocale } from "./i18n.js?v=2026-09-07a";
+} from "./charts.js?v=2026-09-07b";
+import { yearRange } from "./cql.js?v=2026-09-07b";
+import { BUILDING_PURPOSES } from "./codelists.js?v=2026-09-07b";
+import { municipalityNames, municipalityName } from "./municipalities.js?v=2026-09-07b";
+import { t, locale, numberLocale } from "./i18n.js?v=2026-09-07b";
 
 const el = (id) => document.getElementById(id);
 
